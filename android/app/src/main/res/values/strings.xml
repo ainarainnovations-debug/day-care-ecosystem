@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Day Care Ecosystem</string>
+    <string name="title_activity_main">Day Care Ecosystem</string>
+    <string name="package_name">com.ainara.daycare</string>
+    <string name="custom_url_scheme">com.ainara.daycare</string>
+</resources>
