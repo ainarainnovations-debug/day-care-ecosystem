@@ -79,6 +79,52 @@ const ProviderDashboard = () => {
                 ))}
               </div>
             )}
+
+            {/* Quick Access to New Features */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div 
+                onClick={() => window.location.href = '/provider/capacity'}
+                className="bg-popover rounded-xl border border-border p-5 cursor-pointer hover:border-primary/50 hover:bg-light-sage/20 transition-all group"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="w-12 h-12 bg-light-sage rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <Users className="w-6 h-6 text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-heading font-semibold text-foreground mb-1">Capacity Management</h4>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Track enrollment capacity, manage waitlists, and monitor classroom utilization
+                    </p>
+                    <div className="flex items-center gap-2 text-xs">
+                      <Badge variant="outline" className="bg-accent/10">6/8 enrolled</Badge>
+                      <Badge variant="outline" className="bg-primary/10">75% utilization</Badge>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div 
+                onClick={() => window.location.href = '/provider/payments'}
+                className="bg-popover rounded-xl border border-border p-5 cursor-pointer hover:border-primary/50 hover:bg-light-sage/20 transition-all group"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="w-12 h-12 bg-light-sage rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <DollarSign className="w-6 h-6 text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-heading font-semibold text-foreground mb-1">Payment Collection</h4>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Accept ACH, card, and FSA/HSA payments with instant confirmation and autopay
+                    </p>
+                    <div className="flex items-center gap-2 text-xs">
+                      <Badge variant="outline" className="bg-accent/10">82% autopay rate</Badge>
+                      <Badge variant="outline" className="bg-primary/10">$45.6K collected</Badge>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div className="bg-popover rounded-xl border border-border overflow-hidden">
               <div className="p-4 border-b border-border">
                 <h3 className="font-heading font-semibold text-foreground">Today's Attendance</h3>

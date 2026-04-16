@@ -1,4 +1,4 @@
-import { LogIn, LogOut, Menu, X, Search, Shield, LayoutDashboard, MessageSquare, GraduationCap } from "lucide-react";
+import { LogIn, LogOut, Menu, X, Search, Shield, LayoutDashboard, MessageSquare, GraduationCap, Users, DollarSign } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -58,6 +58,12 @@ const Navbar = () => {
               <Link to="/provider/dashboard" className="flex items-center gap-1.5 text-sm font-medium text-foreground hover:text-primary transition-colors">
                 <LayoutDashboard className="w-4 h-4 stroke-[2.25]" /> Dashboard
               </Link>
+              <Link to="/provider/capacity" className="flex items-center gap-1.5 text-sm font-medium text-foreground hover:text-primary transition-colors">
+                <Users className="w-4 h-4 stroke-[2.25]" /> Capacity
+              </Link>
+              <Link to="/provider/payments" className="flex items-center gap-1.5 text-sm font-medium text-foreground hover:text-primary transition-colors">
+                <DollarSign className="w-4 h-4 stroke-[2.25]" /> Payments
+              </Link>
               <Link to="/parent/messages" className="flex items-center gap-1.5 text-sm font-medium text-foreground hover:text-primary transition-colors">
                 <MessageSquare className="w-4 h-4 stroke-[2.25]" /> Messages
               </Link>
@@ -108,6 +114,8 @@ const Navbar = () => {
           {user && userRole === "provider" && (
             <>
               <Link to="/provider/dashboard" className="block text-sm font-medium text-foreground" onClick={() => setMobileOpen(false)}>Dashboard</Link>
+              <Link to="/provider/capacity" className="block text-sm font-medium text-foreground" onClick={() => setMobileOpen(false)}>Capacity</Link>
+              <Link to="/provider/payments" className="block text-sm font-medium text-foreground" onClick={() => setMobileOpen(false)}>Payments</Link>
               <Link to="/parent/messages" className="block text-sm font-medium text-foreground" onClick={() => setMobileOpen(false)}>Messages</Link>
             </>
           )}
