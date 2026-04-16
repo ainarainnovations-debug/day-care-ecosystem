@@ -183,8 +183,6 @@ export type Database = {
           check_out_lng: number | null
           check_out_time: string | null
           checked_in_by: string | null
-          checked_in_by_teacher_id: string | null
-          checked_out_by_teacher_id: string | null
           child_id: string
           created_at: string
           date: string
@@ -200,8 +198,6 @@ export type Database = {
           check_out_lng?: number | null
           check_out_time?: string | null
           checked_in_by?: string | null
-          checked_in_by_teacher_id?: string | null
-          checked_out_by_teacher_id?: string | null
           child_id: string
           created_at?: string
           date?: string
@@ -217,8 +213,6 @@ export type Database = {
           check_out_lng?: number | null
           check_out_time?: string | null
           checked_in_by?: string | null
-          checked_in_by_teacher_id?: string | null
-          checked_out_by_teacher_id?: string | null
           child_id?: string
           created_at?: string
           date?: string
@@ -349,59 +343,6 @@ export type Database = {
         }
         Relationships: []
       }
-      classrooms: {
-        Row: {
-          age_group: string
-          capacity: number
-          created_at: string | null
-          current_enrollment: number | null
-          id: string
-          is_active: boolean | null
-          max_age_months: number | null
-          min_age_months: number | null
-          name: string
-          provider_id: string
-          teacher_ids: string[] | null
-          updated_at: string | null
-        }
-        Insert: {
-          age_group: string
-          capacity?: number
-          created_at?: string | null
-          current_enrollment?: number | null
-          id?: string
-          is_active?: boolean | null
-          max_age_months?: number | null
-          min_age_months?: number | null
-          name: string
-          provider_id: string
-          teacher_ids?: string[] | null
-          updated_at?: string | null
-        }
-        Update: {
-          age_group?: string
-          capacity?: number
-          created_at?: string | null
-          current_enrollment?: number | null
-          id?: string
-          is_active?: boolean | null
-          max_age_months?: number | null
-          min_age_months?: number | null
-          name?: string
-          provider_id?: string
-          teacher_ids?: string[] | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "classrooms_provider_id_fkey"
-            columns: ["provider_id"]
-            isOneToOne: false
-            referencedRelation: "provider_profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       enrollment_applications: {
         Row: {
           child_id: string | null
@@ -443,483 +384,6 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
-      }
-      enrollment_child_assignments: {
-        Row: {
-          assigned_at: string | null
-          billing_profile_created: boolean | null
-          child_id: string
-          classroom_id: string | null
-          created_at: string | null
-          first_invoice_date: string | null
-          id: string
-          submission_id: string
-          tuition_schedule: Json | null
-        }
-        Insert: {
-          assigned_at?: string | null
-          billing_profile_created?: boolean | null
-          child_id: string
-          classroom_id?: string | null
-          created_at?: string | null
-          first_invoice_date?: string | null
-          id?: string
-          submission_id: string
-          tuition_schedule?: Json | null
-        }
-        Update: {
-          assigned_at?: string | null
-          billing_profile_created?: boolean | null
-          child_id?: string
-          classroom_id?: string | null
-          created_at?: string | null
-          first_invoice_date?: string | null
-          id?: string
-          submission_id?: string
-          tuition_schedule?: Json | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "enrollment_child_assignments_child_id_fkey"
-            columns: ["child_id"]
-            isOneToOne: true
-            referencedRelation: "children"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "enrollment_child_assignments_classroom_id_fkey"
-            columns: ["classroom_id"]
-            isOneToOne: false
-            referencedRelation: "classrooms"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "enrollment_child_assignments_submission_id_fkey"
-            columns: ["submission_id"]
-            isOneToOne: true
-            referencedRelation: "enrollment_submissions"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      enrollment_document_requirements: {
-        Row: {
-          allowed_file_types: string[] | null
-          created_at: string | null
-          description: string | null
-          display_order: number
-          document_name: string
-          form_id: string
-          id: string
-          is_required: boolean | null
-          max_file_size_mb: number | null
-          state_required_for: string[] | null
-        }
-        Insert: {
-          allowed_file_types?: string[] | null
-          created_at?: string | null
-          description?: string | null
-          display_order: number
-          document_name: string
-          form_id: string
-          id?: string
-          is_required?: boolean | null
-          max_file_size_mb?: number | null
-          state_required_for?: string[] | null
-        }
-        Update: {
-          allowed_file_types?: string[] | null
-          created_at?: string | null
-          description?: string | null
-          display_order?: number
-          document_name?: string
-          form_id?: string
-          id?: string
-          is_required?: boolean | null
-          max_file_size_mb?: number | null
-          state_required_for?: string[] | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "enrollment_document_requirements_form_id_fkey"
-            columns: ["form_id"]
-            isOneToOne: false
-            referencedRelation: "enrollment_forms"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      enrollment_documents: {
-        Row: {
-          document_name: string
-          file_name: string
-          file_size_bytes: number | null
-          file_type: string | null
-          file_url: string
-          id: string
-          rejection_reason: string | null
-          requirement_id: string | null
-          reviewed_at: string | null
-          reviewed_by: string | null
-          status:
-            | Database["public"]["Enums"]["document_requirement_status"]
-            | null
-          submission_id: string
-          uploaded_at: string | null
-        }
-        Insert: {
-          document_name: string
-          file_name: string
-          file_size_bytes?: number | null
-          file_type?: string | null
-          file_url: string
-          id?: string
-          rejection_reason?: string | null
-          requirement_id?: string | null
-          reviewed_at?: string | null
-          reviewed_by?: string | null
-          status?:
-            | Database["public"]["Enums"]["document_requirement_status"]
-            | null
-          submission_id: string
-          uploaded_at?: string | null
-        }
-        Update: {
-          document_name?: string
-          file_name?: string
-          file_size_bytes?: number | null
-          file_type?: string | null
-          file_url?: string
-          id?: string
-          rejection_reason?: string | null
-          requirement_id?: string | null
-          reviewed_at?: string | null
-          reviewed_by?: string | null
-          status?:
-            | Database["public"]["Enums"]["document_requirement_status"]
-            | null
-          submission_id?: string
-          uploaded_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "enrollment_documents_requirement_id_fkey"
-            columns: ["requirement_id"]
-            isOneToOne: false
-            referencedRelation: "enrollment_document_requirements"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "enrollment_documents_submission_id_fkey"
-            columns: ["submission_id"]
-            isOneToOne: false
-            referencedRelation: "enrollment_submissions"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      enrollment_form_fields: {
-        Row: {
-          compliance_category: string | null
-          created_at: string | null
-          display_order: number
-          field_name: string
-          field_type: Database["public"]["Enums"]["form_field_type"]
-          form_id: string
-          full_width: boolean | null
-          help_text: string | null
-          id: string
-          is_required: boolean | null
-          label: string
-          options: Json | null
-          placeholder: string | null
-          section: string | null
-          state_required_for: string[] | null
-          validation_rules: Json | null
-        }
-        Insert: {
-          compliance_category?: string | null
-          created_at?: string | null
-          display_order: number
-          field_name: string
-          field_type: Database["public"]["Enums"]["form_field_type"]
-          form_id: string
-          full_width?: boolean | null
-          help_text?: string | null
-          id?: string
-          is_required?: boolean | null
-          label: string
-          options?: Json | null
-          placeholder?: string | null
-          section?: string | null
-          state_required_for?: string[] | null
-          validation_rules?: Json | null
-        }
-        Update: {
-          compliance_category?: string | null
-          created_at?: string | null
-          display_order?: number
-          field_name?: string
-          field_type?: Database["public"]["Enums"]["form_field_type"]
-          form_id?: string
-          full_width?: boolean | null
-          help_text?: string | null
-          id?: string
-          is_required?: boolean | null
-          label?: string
-          options?: Json | null
-          placeholder?: string | null
-          section?: string | null
-          state_required_for?: string[] | null
-          validation_rules?: Json | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "enrollment_form_fields_form_id_fkey"
-            columns: ["form_id"]
-            isOneToOne: false
-            referencedRelation: "enrollment_forms"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      enrollment_forms: {
-        Row: {
-          allow_save_resume: boolean | null
-          created_at: string | null
-          description: string | null
-          enabled_languages: string[] | null
-          expiration_days: number | null
-          handbook_url: string | null
-          id: string
-          is_active: boolean | null
-          name: string
-          other_policy_urls: Json | null
-          photo_release_url: string | null
-          provider_id: string
-          state_template: string | null
-          tuition_agreement_url: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          allow_save_resume?: boolean | null
-          created_at?: string | null
-          description?: string | null
-          enabled_languages?: string[] | null
-          expiration_days?: number | null
-          handbook_url?: string | null
-          id?: string
-          is_active?: boolean | null
-          name: string
-          other_policy_urls?: Json | null
-          photo_release_url?: string | null
-          provider_id: string
-          state_template?: string | null
-          tuition_agreement_url?: string | null
-          updated_at?: string | null
-        }
-        Update: {
-          allow_save_resume?: boolean | null
-          created_at?: string | null
-          description?: string | null
-          enabled_languages?: string[] | null
-          expiration_days?: number | null
-          handbook_url?: string | null
-          id?: string
-          is_active?: boolean | null
-          name?: string
-          other_policy_urls?: Json | null
-          photo_release_url?: string | null
-          provider_id?: string
-          state_template?: string | null
-          tuition_agreement_url?: string | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "enrollment_forms_provider_id_fkey"
-            columns: ["provider_id"]
-            isOneToOne: false
-            referencedRelation: "provider_profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      enrollment_missing_item_requests: {
-        Row: {
-          completed_at: string | null
-          created_at: string | null
-          id: string
-          is_completed: boolean | null
-          item_identifier: string
-          item_type: string
-          message: string | null
-          notification_sent_at: string | null
-          requested_by: string
-          submission_id: string
-        }
-        Insert: {
-          completed_at?: string | null
-          created_at?: string | null
-          id?: string
-          is_completed?: boolean | null
-          item_identifier: string
-          item_type: string
-          message?: string | null
-          notification_sent_at?: string | null
-          requested_by: string
-          submission_id: string
-        }
-        Update: {
-          completed_at?: string | null
-          created_at?: string | null
-          id?: string
-          is_completed?: boolean | null
-          item_identifier?: string
-          item_type?: string
-          message?: string | null
-          notification_sent_at?: string | null
-          requested_by?: string
-          submission_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "enrollment_missing_item_requests_submission_id_fkey"
-            columns: ["submission_id"]
-            isOneToOne: false
-            referencedRelation: "enrollment_submissions"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      enrollment_submissions: {
-        Row: {
-          accepted_at: string | null
-          age_group: string | null
-          child_date_of_birth: string | null
-          child_first_name: string | null
-          child_last_name: string | null
-          created_at: string | null
-          decline_reason: string | null
-          desired_start_date: string | null
-          expires_at: string | null
-          form_data: Json | null
-          form_id: string
-          id: string
-          is_complete: boolean | null
-          is_subsidy_family: boolean | null
-          last_saved_at: string | null
-          missing_documents: string[] | null
-          missing_fields: string[] | null
-          parent_email: string | null
-          parent_ip_address: unknown
-          parent_name: string | null
-          parent_phone: string | null
-          parent_signature_at: string | null
-          parent_signature_data: string | null
-          parent_user_id: string | null
-          preferred_language: string | null
-          provider_id: string
-          review_notes: string | null
-          reviewed_at: string | null
-          reviewed_by: string | null
-          status: Database["public"]["Enums"]["enrollment_status"] | null
-          submitted_at: string | null
-          subsidy_program: string | null
-          unique_link_token: string
-          unsigned_policies: string[] | null
-          updated_at: string | null
-        }
-        Insert: {
-          accepted_at?: string | null
-          age_group?: string | null
-          child_date_of_birth?: string | null
-          child_first_name?: string | null
-          child_last_name?: string | null
-          created_at?: string | null
-          decline_reason?: string | null
-          desired_start_date?: string | null
-          expires_at?: string | null
-          form_data?: Json | null
-          form_id: string
-          id?: string
-          is_complete?: boolean | null
-          is_subsidy_family?: boolean | null
-          last_saved_at?: string | null
-          missing_documents?: string[] | null
-          missing_fields?: string[] | null
-          parent_email?: string | null
-          parent_ip_address?: unknown
-          parent_name?: string | null
-          parent_phone?: string | null
-          parent_signature_at?: string | null
-          parent_signature_data?: string | null
-          parent_user_id?: string | null
-          preferred_language?: string | null
-          provider_id: string
-          review_notes?: string | null
-          reviewed_at?: string | null
-          reviewed_by?: string | null
-          status?: Database["public"]["Enums"]["enrollment_status"] | null
-          submitted_at?: string | null
-          subsidy_program?: string | null
-          unique_link_token: string
-          unsigned_policies?: string[] | null
-          updated_at?: string | null
-        }
-        Update: {
-          accepted_at?: string | null
-          age_group?: string | null
-          child_date_of_birth?: string | null
-          child_first_name?: string | null
-          child_last_name?: string | null
-          created_at?: string | null
-          decline_reason?: string | null
-          desired_start_date?: string | null
-          expires_at?: string | null
-          form_data?: Json | null
-          form_id?: string
-          id?: string
-          is_complete?: boolean | null
-          is_subsidy_family?: boolean | null
-          last_saved_at?: string | null
-          missing_documents?: string[] | null
-          missing_fields?: string[] | null
-          parent_email?: string | null
-          parent_ip_address?: unknown
-          parent_name?: string | null
-          parent_phone?: string | null
-          parent_signature_at?: string | null
-          parent_signature_data?: string | null
-          parent_user_id?: string | null
-          preferred_language?: string | null
-          provider_id?: string
-          review_notes?: string | null
-          reviewed_at?: string | null
-          reviewed_by?: string | null
-          status?: Database["public"]["Enums"]["enrollment_status"] | null
-          submitted_at?: string | null
-          subsidy_program?: string | null
-          unique_link_token?: string
-          unsigned_policies?: string[] | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "enrollment_submissions_form_id_fkey"
-            columns: ["form_id"]
-            isOneToOne: false
-            referencedRelation: "enrollment_forms"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "enrollment_submissions_provider_id_fkey"
-            columns: ["provider_id"]
-            isOneToOne: false
-            referencedRelation: "provider_profiles"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       invite_codes: {
         Row: {
@@ -1056,8 +520,6 @@ export type Database = {
           id: string
           is_read: boolean
           link: string | null
-          read: boolean | null
-          read_at: string | null
           title: string
           type: string
           user_id: string
@@ -1068,8 +530,6 @@ export type Database = {
           id?: string
           is_read?: boolean
           link?: string | null
-          read?: boolean | null
-          read_at?: string | null
           title: string
           type: string
           user_id: string
@@ -1080,8 +540,6 @@ export type Database = {
           id?: string
           is_read?: boolean
           link?: string | null
-          read?: boolean | null
-          read_at?: string | null
           title?: string
           type?: string
           user_id?: string
@@ -1352,13 +810,13 @@ export type Database = {
       }
       teacher_permissions: {
         Row: {
-          can_check_in_children: boolean | null
-          can_check_out_children: boolean | null
-          can_log_activities: boolean | null
-          can_manage_bookings: boolean | null
-          can_message_parents: boolean | null
-          can_upload_photos: boolean | null
-          can_view_billing: boolean | null
+          can_check_in_children: boolean
+          can_check_out_children: boolean
+          can_log_activities: boolean
+          can_manage_bookings: boolean
+          can_message_parents: boolean
+          can_upload_photos: boolean
+          can_view_billing: boolean
           created_at: string
           id: string
           provider_id: string
@@ -1366,13 +824,13 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          can_check_in_children?: boolean | null
-          can_check_out_children?: boolean | null
-          can_log_activities?: boolean | null
-          can_manage_bookings?: boolean | null
-          can_message_parents?: boolean | null
-          can_upload_photos?: boolean | null
-          can_view_billing?: boolean | null
+          can_check_in_children?: boolean
+          can_check_out_children?: boolean
+          can_log_activities?: boolean
+          can_manage_bookings?: boolean
+          can_message_parents?: boolean
+          can_upload_photos?: boolean
+          can_view_billing?: boolean
           created_at?: string
           id?: string
           provider_id: string
@@ -1380,20 +838,28 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          can_check_in_children?: boolean | null
-          can_check_out_children?: boolean | null
-          can_log_activities?: boolean | null
-          can_manage_bookings?: boolean | null
-          can_message_parents?: boolean | null
-          can_upload_photos?: boolean | null
-          can_view_billing?: boolean | null
+          can_check_in_children?: boolean
+          can_check_out_children?: boolean
+          can_log_activities?: boolean
+          can_manage_bookings?: boolean
+          can_message_parents?: boolean
+          can_upload_photos?: boolean
+          can_view_billing?: boolean
           created_at?: string
           id?: string
           provider_id?: string
           teacher_id?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "teacher_permissions_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "teacher_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       teacher_profiles: {
         Row: {
@@ -1403,7 +869,7 @@ export type Database = {
           emergency_contact_name: string | null
           emergency_contact_phone: string | null
           employment_start_date: string | null
-          employment_status: string | null
+          employment_status: string
           hourly_rate: number | null
           id: string
           photo_url: string | null
@@ -1420,7 +886,7 @@ export type Database = {
           emergency_contact_name?: string | null
           emergency_contact_phone?: string | null
           employment_start_date?: string | null
-          employment_status?: string | null
+          employment_status?: string
           hourly_rate?: number | null
           id?: string
           photo_url?: string | null
@@ -1437,7 +903,7 @@ export type Database = {
           emergency_contact_name?: string | null
           emergency_contact_phone?: string | null
           employment_start_date?: string | null
-          employment_status?: string | null
+          employment_status?: string
           hourly_rate?: number | null
           id?: string
           photo_url?: string | null
@@ -1464,7 +930,7 @@ export type Database = {
           gross_pay: number | null
           hourly_rate_snapshot: number | null
           id: string
-          is_approved: boolean | null
+          is_approved: boolean
           notes: string | null
           provider_id: string
           teacher_id: string
@@ -1477,7 +943,7 @@ export type Database = {
           break_duration_minutes?: number | null
           clock_in_lat?: number | null
           clock_in_lng?: number | null
-          clock_in_time: string
+          clock_in_time?: string
           clock_out_lat?: number | null
           clock_out_lng?: number | null
           clock_out_time?: string | null
@@ -1485,7 +951,7 @@ export type Database = {
           gross_pay?: number | null
           hourly_rate_snapshot?: number | null
           id?: string
-          is_approved?: boolean | null
+          is_approved?: boolean
           notes?: string | null
           provider_id: string
           teacher_id: string
@@ -1506,7 +972,7 @@ export type Database = {
           gross_pay?: number | null
           hourly_rate_snapshot?: number | null
           id?: string
-          is_approved?: boolean | null
+          is_approved?: boolean
           notes?: string | null
           provider_id?: string
           teacher_id?: string
@@ -1535,24 +1001,9 @@ export type Database = {
       }
     }
     Views: {
-      teacher_dashboard_stats: {
-        Row: {
-          days_worked_this_month: number | null
-          pending_approvals: number | null
-          teacher_id: string | null
-          total_earnings_this_month: number | null
-          total_hours_this_month: number | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
-      check_enrollment_completeness: {
-        Args: { p_submission_id: string }
-        Returns: Json
-      }
-      generate_enrollment_link_token: { Args: never; Returns: string }
-      get_unread_count: { Args: never; Returns: number }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1567,11 +1018,6 @@ export type Database = {
           _target_id?: string
           _target_type: string
         }
-        Returns: undefined
-      }
-      mark_all_notifications_read: { Args: never; Returns: undefined }
-      mark_notification_read: {
-        Args: { p_notification_id: string }
         Returns: undefined
       }
     }
@@ -1591,34 +1037,6 @@ export type Database = {
       booking_status: "pending" | "confirmed" | "cancelled" | "completed"
       booking_type: "full_day" | "half_day" | "hourly"
       claim_status: "pending" | "approved" | "rejected"
-      document_requirement_status:
-        | "not_uploaded"
-        | "uploaded"
-        | "approved"
-        | "rejected"
-      enrollment_status:
-        | "draft"
-        | "submitted"
-        | "under_review"
-        | "incomplete"
-        | "accepted"
-        | "on_hold"
-        | "declined"
-      form_field_type:
-        | "text"
-        | "email"
-        | "phone"
-        | "date"
-        | "number"
-        | "textarea"
-        | "select"
-        | "multiselect"
-        | "checkbox"
-        | "radio"
-        | "file_upload"
-        | "signature"
-        | "address"
-        | "emergency_contact"
       invite_code_type: "teacher_invite" | "parent_enrollment"
       invoice_status: "draft" | "sent" | "paid" | "overdue"
       user_role: "parent" | "provider" | "admin" | "teacher"
@@ -1765,37 +1183,6 @@ export const Constants = {
       booking_status: ["pending", "confirmed", "cancelled", "completed"],
       booking_type: ["full_day", "half_day", "hourly"],
       claim_status: ["pending", "approved", "rejected"],
-      document_requirement_status: [
-        "not_uploaded",
-        "uploaded",
-        "approved",
-        "rejected",
-      ],
-      enrollment_status: [
-        "draft",
-        "submitted",
-        "under_review",
-        "incomplete",
-        "accepted",
-        "on_hold",
-        "declined",
-      ],
-      form_field_type: [
-        "text",
-        "email",
-        "phone",
-        "date",
-        "number",
-        "textarea",
-        "select",
-        "multiselect",
-        "checkbox",
-        "radio",
-        "file_upload",
-        "signature",
-        "address",
-        "emergency_contact",
-      ],
       invite_code_type: ["teacher_invite", "parent_enrollment"],
       invoice_status: ["draft", "sent", "paid", "overdue"],
       user_role: ["parent", "provider", "admin", "teacher"],
