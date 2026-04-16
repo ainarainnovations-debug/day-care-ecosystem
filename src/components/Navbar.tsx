@@ -25,15 +25,34 @@ const Navbar = () => {
     navigate("/");
   };
 
+  const handleLogoClick = () => {
+    if (user) {
+      // Navigate to appropriate dashboard based on role
+      if (userRole === "parent") {
+        navigate("/parent/dashboard");
+      } else if (userRole === "provider") {
+        navigate("/provider/dashboard");
+      } else if (userRole === "admin") {
+        navigate("/admin/dashboard");
+      } else if (userRole === "teacher") {
+        navigate("/teacher/dashboard");
+      } else {
+        navigate("/");
+      }
+    } else {
+      navigate("/");
+    }
+  };
+
   return (
     <nav className={`fixed top-0 left-0 right-0 z-50 bg-popover/95 backdrop-blur-md transition-all duration-300 ${
       scrolled ? 'shadow-md border-b border-border' : 'border-b border-transparent'
     }`}>
       <div className="container mx-auto flex items-center justify-between py-4 px-4 md:px-8">
-        <Link to="/" className="flex flex-col leading-tight">
+        <button onClick={handleLogoClick} className="flex flex-col leading-tight cursor-pointer">
           <span className="font-heading text-xl font-bold text-foreground tracking-tight">care</span>
           <span className="font-heading text-xl font-bold text-foreground -mt-1 tracking-tight">connect</span>
-        </Link>
+        </button>
 
         <div className="hidden md:flex items-center gap-6">
           {!user && (
