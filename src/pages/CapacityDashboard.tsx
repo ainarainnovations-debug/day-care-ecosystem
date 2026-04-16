@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -8,6 +9,8 @@ import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Users, TrendingUp, AlertCircle, Info, Settings, Bell, LayoutDashboard, Calendar, Baby, Activity, Wallet, CalendarClock, Timer, KeyRound, Inbox, PencilLine, Rocket, DollarSign } from 'lucide-react';
 import Navbar from '@/components/Navbar';
+import { useAuth } from '@/hooks/useAuth';
+import { capacityService } from '@/services/capacityService';
 
 const sidebarItems = [
   { id: "today", label: "Today", icon: LayoutDashboard, path: "/provider/dashboard" },
@@ -24,29 +27,54 @@ const sidebarItems = [
   { id: "settings", label: "Settings", icon: Settings, path: "/provider/dashboard" },
 ];
 
-interface Classroom {
-  id: string;
-  name: string;
-  age_group: string;
-  capacity: number;
-  current_enrollment: number;
-}
-
-// Mock data since classrooms table doesn't exist yet
-const mockClassrooms: Classroom[] = [
-  { id: '1', name: 'Infants', age_group: 'infant', capacity: 8, current_enrollment: 6 },
-  { id: '2', name: 'Toddlers', age_group: 'toddler', capacity: 12, current_enrollment: 10 },
-  { id: '3', name: 'Pre-K', age_group: 'pre-k', capacity: 16, current_enrollment: 14 },
-];
-
 export default function CapacityDashboard() {
   const navigate = useNavigate();
-  const classrooms = mockClassrooms;
+  const { user } = useAuth();
 
-  const totalCapacity = classrooms.reduce((sum, c) => sum + c.capacity, 0);
-  const totalEnrolled = classrooms.reduce((sum, c) => sum + c.current_enrollment, 0);
-  const totalAvailable = totalCapacity - totalEnrolled;
-  const overallUtilization = totalCapacity > 0 ? (totalEnrolled / totalCapacity) * 100 : 0;
+  // Fetch real capacity data from database
+  const { data: capacityData, isLoading, error } = useQuery({
+    queryKey: ['capacity-stats', user?.id],
+    queryFn: () => capacityService.getCapacityStats(user!.id),
+    enabled: !!user?.id,
+  });
+
+  const classrooms = capacityData?.classrooms || [];
+  const totalCapacity = capacityData?.totalCapacity || 0;
+  const totalEnrolled = capacityData?.totalEnrolled || 0;
+  const totalAvailable = capacityData?.totalAvailable || 0;
+  const overallUtilization = capacityData?.utilization || 0;
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <div className="flex items-center justify-center h-[calc(100vh-64px)]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading capacity data...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <div className="flex items-center justify-center h-[calc(100vh-64px)]">
+          <Alert className="max-w-lg">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              <strong>Error loading capacity data</strong><br />
+              {error instanceof Error ? error.message : 'An error occurred'}
+            </AlertDescription>
+          </Alert>
+        </div>
+      </div>
+    );
+  }
+
 
   return (
     <div className="min-h-screen bg-background">
@@ -139,8 +167,8 @@ export default function CapacityDashboard() {
           <h2 className="text-xl font-bold text-foreground">Classrooms</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {classrooms.map((classroom) => {
-              const utilization = classroom.capacity > 0 ? (classroom.current_enrollment / classroom.capacity) * 100 : 0;
-              const available = classroom.capacity - classroom.current_enrollment;
+              const utilization = classroom.licensed_capacity > 0 ? (classroom.current_enrollment / classroom.licensed_capacity) * 100 : 0;
+              const available = classroom.available_spots;
 
               return (
                 <Card key={classroom.id} className="p-6">
@@ -155,7 +183,7 @@ export default function CapacityDashboard() {
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Capacity</span>
-                        <span className="font-semibold">{classroom.current_enrollment} / {classroom.capacity}</span>
+                        <span className="font-semibold">{classroom.current_enrollment} / {classroom.licensed_capacity}</span>
                       </div>
                       <Progress value={utilization} className="h-2" />
                       <p className="text-xs text-muted-foreground">{available} spots available</p>
