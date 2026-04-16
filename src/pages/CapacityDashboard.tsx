@@ -11,14 +11,16 @@ import Navbar from '@/components/Navbar';
 
 const sidebarItems = [
   { id: "today", label: "Today", icon: LayoutDashboard, path: "/provider/dashboard" },
-  { id: "capacity", label: "Capacity", icon: Users, path: "/provider/capacity" },
-  { id: "payments", label: "Payments", icon: DollarSign, path: "/provider/payments" },
   { id: "schedule", label: "Schedule", icon: Calendar, path: "/provider/dashboard" },
   { id: "children", label: "Children", icon: Baby, path: "/provider/dashboard" },
   { id: "activity", label: "Log Activity", icon: Activity, path: "/provider/dashboard" },
   { id: "billing", label: "Billing", icon: Wallet, path: "/provider/dashboard" },
   { id: "availability", label: "Availability", icon: CalendarClock, path: "/provider/dashboard" },
   { id: "timelabor", label: "Time & Labor", icon: Timer, path: "/provider/dashboard" },
+  { id: "invites", label: "Invites", icon: KeyRound, path: "/provider/dashboard" },
+  { id: "applications", label: "Applications", icon: Inbox, path: "/provider/dashboard" },
+  { id: "editprofile", label: "Edit Profile", icon: PencilLine, path: "/provider/dashboard" },
+  { id: "setup", label: "Setup", icon: Rocket, path: "/provider/dashboard" },
   { id: "settings", label: "Settings", icon: Settings, path: "/provider/dashboard" },
 ];
 
@@ -60,7 +62,7 @@ export default function CapacityDashboard() {
           </div>
           {sidebarItems.map((item) => {
             const SideIcon = item.icon;
-            const isActive = item.id === "capacity";
+            const isActive = false; // No sidebar item is active on this page
             return (
               <Tooltip key={item.id}>
                 <TooltipTrigger asChild>
