@@ -3,6 +3,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { ArrowLeft, Bell, Home, Clock, UserCheck, ClipboardCheck, PenSquare, User, GraduationCap } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
+import Navbar from "@/components/Navbar";
 import TeacherHome from "@/components/teacher/TeacherHome";
 import TeacherAttendance from "@/components/teacher/TeacherAttendance";
 import TeacherActivities from "@/components/teacher/TeacherActivities";
@@ -11,7 +12,6 @@ import TeacherPunchClock from "@/components/teacher/TeacherPunchClock";
 import TeacherChildCheckInOut from "@/components/teacher/TeacherChildCheckInOut";
 import TeacherBottomNav from "@/components/teacher/TeacherBottomNav";
 import { useIsMobile } from "@/hooks/use-mobile";
-import teacherAvatar from "@/assets/teacher-avatar.jpg";
 
 type TeacherTab = "home" | "attendance" | "activities" | "profile" | "punch" | "checkinout";
 
@@ -23,6 +23,15 @@ const tabConfig: Record<TeacherTab, { title: string; rightLabel?: string }> = {
   punch: { title: "Punch Clock" },
   checkinout: { title: "Check In / Out" },
 };
+
+const sidebarItems: { id: TeacherTab; label: string; icon: React.ElementType }[] = [
+  { id: "home", label: "Home", icon: Home },
+  { id: "punch", label: "Punch Clock", icon: Clock },
+  { id: "checkinout", label: "Kid Check In/Out", icon: UserCheck },
+  { id: "attendance", label: "Attendance", icon: ClipboardCheck },
+  { id: "activities", label: "Activities", icon: PenSquare },
+  { id: "profile", label: "Profile", icon: User },
+];
 
 const TeacherDashboard = () => {
   const [activeTab, setActiveTab] = useState<TeacherTab>("home");
@@ -48,12 +57,13 @@ const TeacherDashboard = () => {
   if (isMobile) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
-        {/* Sticky top bar */}
-        <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-md border-b border-border px-4 py-3">
+        <div className="sticky top-0 z-30 bg-popover border-b border-border px-4 py-3">
           {isHome ? (
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <img src={teacherAvatar} alt={displayName} className="w-10 h-10 rounded-full object-cover" />
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                  <GraduationCap className="w-5 h-5 text-primary" />
+                </div>
                 <div>
                   <p className="text-xs text-muted-foreground">{greeting} 👋</p>
                   <h1 className="font-heading text-base font-bold text-foreground">{displayName}</h1>
@@ -92,48 +102,52 @@ const TeacherDashboard = () => {
     );
   }
 
-  // Desktop layout
+  // Desktop layout — consistent with Provider & Parent dashboards
   return (
-    <div className="min-h-screen bg-background flex">
-      <aside className="w-64 bg-popover border-r border-border p-6 flex flex-col gap-2">
-        <h2 className="font-heading text-xl font-bold text-foreground mb-6 flex items-center gap-2">
-          <GraduationCap className="w-6 h-6 stroke-[2.25]" /> Teacher
-        </h2>
-        {([
-          { id: "home" as TeacherTab, label: "Home", icon: Home },
-          { id: "punch" as TeacherTab, label: "Punch Clock", icon: Clock },
-          { id: "checkinout" as TeacherTab, label: "Kid Check In/Out", icon: UserCheck },
-          { id: "attendance" as TeacherTab, label: "Attendance", icon: ClipboardCheck },
-          { id: "activities" as TeacherTab, label: "Activities", icon: PenSquare },
-          { id: "profile" as TeacherTab, label: "Profile", icon: User },
-        ] as const).map((item) => {
-          const SideIcon = item.icon;
-          return (
-            <Tooltip key={item.id}>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={() => setActiveTab(item.id)}
-                  className={`group flex items-center gap-3 px-4 py-3 rounded-xl text-left text-sm font-body transition-all duration-200 relative ${
-                    activeTab === item.id
-                      ? "bg-primary/10 text-primary font-semibold"
-                      : "text-muted-foreground hover:bg-secondary hover:text-foreground hover:translate-x-1"
-                  }`}
-                >
-                  {activeTab === item.id && (
-                    <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-primary rounded-r-full" />
-                  )}
-                  <SideIcon className={`w-[18px] h-[18px] flex-shrink-0 transition-transform duration-200 group-hover:scale-110 ${activeTab === item.id ? "stroke-[2.5]" : "stroke-[2.25] group-hover:stroke-[2.5]"}`} />
+    <div className="min-h-screen bg-background">
+      <Navbar />
+      <div className="flex pt-16">
+        {/* Sidebar — matches Provider/Parent pattern */}
+        <aside className="w-64 min-h-[calc(100vh-64px)] bg-popover border-r border-border p-4 flex-shrink-0 hidden md:flex flex-col gap-1">
+          <div className="mb-4 px-3">
+            <h2 className="font-heading text-lg font-bold text-foreground flex items-center gap-2">
+              <GraduationCap className="w-5 h-5 stroke-[2.25]" /> Teacher
+            </h2>
+            <p className="text-xs text-muted-foreground">{displayName}</p>
+          </div>
+          {sidebarItems.map((item) => {
+            const SideIcon = item.icon;
+            return (
+              <Tooltip key={item.id}>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setActiveTab(item.id)}
+                    className={`group flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-sm font-body transition-all duration-200 w-full relative ${
+                      activeTab === item.id
+                        ? "bg-primary/10 text-primary font-semibold"
+                        : "text-muted-foreground hover:bg-secondary hover:text-foreground hover:translate-x-1"
+                    }`}
+                  >
+                    {activeTab === item.id && (
+                      <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-primary rounded-r-full" />
+                    )}
+                    <SideIcon className={`w-[18px] h-[18px] flex-shrink-0 transition-transform duration-200 group-hover:scale-110 ${activeTab === item.id ? "stroke-[2.5]" : "stroke-[2.25] group-hover:stroke-[2.5]"}`} />
+                    {item.label}
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="text-xs">
                   {item.label}
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="right" className="text-xs">
-                {item.label}
-              </TooltipContent>
-            </Tooltip>
-          );
-        })}
-      </aside>
-      <main key={activeTab} className="flex-1 p-8 max-w-4xl animate-fade-in">{renderTab()}</main>
+                </TooltipContent>
+              </Tooltip>
+            );
+          })}
+        </aside>
+
+        {/* Main content */}
+        <main key={activeTab} className="flex-1 p-6 md:p-8 max-w-4xl animate-fade-in">
+          {renderTab()}
+        </main>
+      </div>
     </div>
   );
 };

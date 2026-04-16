@@ -14,24 +14,10 @@ export type PhotoType =
 
 export interface Photo {
   id: string;
-  uploaded_by: string;
-  bucket: string;
-  path: string;
-  filename: string;
-  mime_type: string;
-  size_bytes: number;
-  type: PhotoType;
-  caption?: string;
-  child_id?: string;
-  provider_id?: string;
-  activity_id?: string;
-  message_id?: string;
-  width?: number;
-  height?: number;
-  is_public: boolean;
+  photo_url: string;
+  caption?: string | null;
   created_at: string;
-  updated_at: string;
-  url: string;
+  activity_log_id?: string;
 }
 
 export interface UploadPhotoOptions {
@@ -41,7 +27,6 @@ export interface UploadPhotoOptions {
   childId?: string;
   providerId?: string;
   activityId?: string;
-  messageId?: string;
   isPublic?: boolean;
 }
 
@@ -59,340 +44,114 @@ class PhotoService {
     other: 'activity-photos',
   };
 
-  /**
-   * Upload a photo to Supabase Storage and create metadata record
-   */
   async uploadPhoto(options: UploadPhotoOptions): Promise<Photo> {
-    const { file, type, caption, childId, providerId, activityId, messageId, isPublic = false } = options;
-
-    // Get bucket name
+    const { file, type, caption, childId, providerId, activityId, isPublic = false } = options;
     const bucket = this.bucketMap[type];
-
-    // Generate unique filename
     const fileExt = file.name.split('.').pop();
     const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
     
-    // Get user ID
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
 
-    // Create path based on type
-    let path = '';
-    switch (type) {
-      case 'profile':
-        path = `${user.id}/${fileName}`;
-        break;
-      case 'child_profile':
-        path = `children/${childId}/${fileName}`;
-        break;
-      case 'facility':
-        path = `providers/${providerId}/${fileName}`;
-        break;
-      case 'activity':
-      case 'meal':
-      case 'nap':
-      case 'play':
-      case 'learning':
-        path = `activities/${activityId || Date.now()}/${fileName}`;
-        break;
-      case 'message_attachment':
-        path = `messages/${messageId || Date.now()}/${fileName}`;
-        break;
-      default:
-        path = `${user.id}/${fileName}`;
-    }
+    let path = `${user.id}/${fileName}`;
+    if (type === 'child_profile') path = `children/${childId}/${fileName}`;
+    else if (type === 'facility') path = `providers/${providerId}/${fileName}`;
+    else if (['activity', 'meal', 'nap', 'play', 'learning'].includes(type))
+      path = `activities/${activityId || Date.now()}/${fileName}`;
 
-    // Upload to storage
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from(bucket)
-      .upload(path, file, {
-        cacheControl: '3600',
-        upsert: false,
-      });
+      .upload(path, file, { cacheControl: '3600', upsert: false });
 
-    if (uploadError) {
-      console.error('Upload error:', uploadError);
-      throw uploadError;
+    if (uploadError) throw uploadError;
+
+    const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(uploadData.path);
+
+    // If there's an activity, store in activity_photos
+    if (activityId) {
+      const { data, error } = await supabase
+        .from('activity_photos')
+        .insert({
+          activity_log_id: activityId,
+          photo_url: urlData.publicUrl,
+          caption: caption || null,
+        })
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data as Photo;
     }
 
-    // Get image dimensions
-    const dimensions = await this.getImageDimensions(file);
-
-    // Create metadata record
-    const { data: photoData, error: photoError } = await supabase.rpc('create_photo', {
-      p_bucket: bucket,
-      p_path: uploadData.path,
-      p_filename: file.name,
-      p_mime_type: file.type,
-      p_size_bytes: file.size,
-      p_type: type,
-      p_caption: caption || null,
-      p_child_id: childId || null,
-      p_provider_id: providerId || null,
-      p_activity_id: activityId || null,
-      p_message_id: messageId || null,
-      p_width: dimensions?.width || null,
-      p_height: dimensions?.height || null,
-      p_is_public: isPublic,
-    });
-
-    if (photoError) {
-      console.error('Photo metadata error:', photoError);
-      // Try to clean up uploaded file
-      await supabase.storage.from(bucket).remove([uploadData.path]);
-      throw photoError;
-    }
-
-    // Fetch the created photo
-    const { data: photo, error: fetchError } = await supabase
-      .from('photos')
-      .select('*')
-      .eq('id', photoData)
-      .single();
-
-    if (fetchError) throw fetchError;
-
-    return photo as Photo;
+    return {
+      id: uploadData.path,
+      photo_url: urlData.publicUrl,
+      caption,
+      created_at: new Date().toISOString(),
+    };
   }
 
-  /**
-   * Get image dimensions from file
-   */
-  private getImageDimensions(file: File): Promise<{ width: number; height: number } | null> {
-    return new Promise((resolve) => {
-      if (!file.type.startsWith('image/')) {
-        resolve(null);
-        return;
-      }
-
-      const img = new Image();
-      const url = URL.createObjectURL(file);
-
-      img.onload = () => {
-        URL.revokeObjectURL(url);
-        resolve({ width: img.width, height: img.height });
-      };
-
-      img.onerror = () => {
-        URL.revokeObjectURL(url);
-        resolve(null);
-      };
-
-      img.src = url;
-    });
-  }
-
-  /**
-   * Get public URL for a photo
-   */
   getPublicUrl(bucket: string, path: string): string {
     const { data } = supabase.storage.from(bucket).getPublicUrl(path);
     return data.publicUrl;
   }
 
-  /**
-   * Get signed URL for private photo (expires in 1 hour)
-   */
   async getSignedUrl(bucket: string, path: string, expiresIn = 3600): Promise<string> {
     const { data, error } = await supabase.storage
       .from(bucket)
       .createSignedUrl(path, expiresIn);
-
     if (error) throw error;
     return data.signedUrl;
   }
 
-  /**
-   * Delete a photo
-   */
-  async deletePhoto(photoId: string): Promise<boolean> {
-    // Get photo details
-    const { data: photo, error: fetchError } = await supabase
-      .from('photos')
-      .select('*')
-      .eq('id', photoId)
-      .single();
-
-    if (fetchError || !photo) {
-      console.error('Photo not found:', fetchError);
-      return false;
-    }
-
-    // Delete from storage
-    const { error: storageError } = await supabase.storage
-      .from(photo.bucket)
-      .remove([photo.path]);
-
-    if (storageError) {
-      console.error('Storage delete error:', storageError);
-    }
-
-    // Delete from database
-    const { error: dbError } = await supabase
-      .from('photos')
-      .delete()
-      .eq('id', photoId);
-
-    if (dbError) {
-      console.error('Database delete error:', dbError);
-      return false;
-    }
-
-    return true;
-  }
-
-  /**
-   * Get user's photos
-   */
-  async getUserPhotos(userId?: string, limit = 50): Promise<Photo[]> {
-    let query = supabase
-      .from('photos')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(limit);
-
-    if (userId) {
-      query = query.eq('uploaded_by', userId);
-    }
-
-    const { data, error } = await query;
-
-    if (error) throw error;
-    return data as Photo[];
-  }
-
-  /**
-   * Get child's photos
-   */
-  async getChildPhotos(childId: string, limit = 50): Promise<Photo[]> {
-    const { data, error } = await supabase
-      .from('photos')
-      .select('*')
-      .eq('child_id', childId)
-      .order('created_at', { ascending: false })
-      .limit(limit);
-
-    if (error) throw error;
-    return data as Photo[];
-  }
-
-  /**
-   * Get activity photos
-   */
   async getActivityPhotos(activityId: string): Promise<Photo[]> {
     const { data, error } = await supabase
-      .from('photos')
+      .from('activity_photos')
       .select('*')
-      .eq('activity_id', activityId)
+      .eq('activity_log_id', activityId)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
-    return data as Photo[];
+    return (data || []) as Photo[];
   }
 
-  /**
-   * Get provider facility photos
-   */
-  async getFacilityPhotos(providerId: string): Promise<Photo[]> {
-    const { data, error } = await supabase
-      .from('photos')
-      .select('*')
-      .eq('provider_id', providerId)
-      .eq('type', 'facility')
-      .order('created_at', { ascending: false });
+  async updateProfilePhoto(file: File): Promise<string> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
 
-    if (error) throw error;
-    return data as Photo[];
-  }
+    const photo = await this.uploadPhoto({ file, type: 'profile', isPublic: true });
 
-  /**
-   * Update profile photo
-   */
-  async updateProfilePhoto(file: File): Promise<Photo> {
-    const photo = await this.uploadPhoto({
-      file,
-      type: 'profile',
-      isPublic: true,
-    });
-
-    // Update profile
-    const { error } = await supabase
+    await supabase
       .from('profiles')
-      .update({
-        profile_photo_url: photo.url,
-        profile_photo_id: photo.id,
-      })
-      .eq('id', photo.uploaded_by);
+      .update({ avatar_url: photo.photo_url })
+      .eq('user_id', user.id);
 
-    if (error) {
-      console.error('Profile update error:', error);
-    }
-
-    return photo;
+    return photo.photo_url;
   }
 
-  /**
-   * Update child profile photo
-   */
-  async updateChildPhoto(childId: string, file: File): Promise<Photo> {
-    const photo = await this.uploadPhoto({
-      file,
-      type: 'child_profile',
-      childId,
-      isPublic: false,
-    });
+  async updateChildPhoto(childId: string, file: File): Promise<string> {
+    const photo = await this.uploadPhoto({ file, type: 'child_profile', childId, isPublic: false });
 
-    // Update child
-    const { error } = await supabase
+    await supabase
       .from('children')
-      .update({
-        photo_url: photo.url,
-        photo_id: photo.id,
-      })
+      .update({ photo_url: photo.photo_url })
       .eq('id', childId);
 
-    if (error) {
-      console.error('Child update error:', error);
-    }
-
-    return photo;
+    return photo.photo_url;
   }
 
-  /**
-   * Validate file before upload
-   */
   validateFile(file: File, maxSizeMB = 10): { valid: boolean; error?: string } {
-    // Check file size
     const maxSizeBytes = maxSizeMB * 1024 * 1024;
-    if (file.size > maxSizeBytes) {
-      return { valid: false, error: `File size exceeds ${maxSizeMB}MB limit` };
-    }
+    if (file.size > maxSizeBytes) return { valid: false, error: `File size exceeds ${maxSizeMB}MB limit` };
 
-    // Check MIME type
-    const allowedTypes = [
-      'image/jpeg',
-      'image/jpg',
-      'image/png',
-      'image/webp',
-      'image/gif',
-      'video/mp4',
-      'video/quicktime',
-    ];
-
-    if (!allowedTypes.includes(file.type)) {
-      return { valid: false, error: 'File type not supported' };
-    }
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif', 'video/mp4', 'video/quicktime'];
+    if (!allowedTypes.includes(file.type)) return { valid: false, error: 'File type not supported' };
 
     return { valid: true };
   }
 
-  /**
-   * Compress image before upload (optional)
-   */
   async compressImage(file: File, maxWidth = 1920, quality = 0.8): Promise<File> {
-    if (!file.type.startsWith('image/')) {
-      return file;
-    }
+    if (!file.type.startsWith('image/')) return file;
 
     return new Promise((resolve) => {
       const reader = new FileReader();
@@ -401,29 +160,15 @@ class PhotoService {
         img.onload = () => {
           const canvas = document.createElement('canvas');
           let { width, height } = img;
-
-          if (width > maxWidth) {
-            height = (height * maxWidth) / width;
-            width = maxWidth;
-          }
-
+          if (width > maxWidth) { height = (height * maxWidth) / width; width = maxWidth; }
           canvas.width = width;
           canvas.height = height;
-
           const ctx = canvas.getContext('2d');
           ctx?.drawImage(img, 0, 0, width, height);
-
           canvas.toBlob(
             (blob) => {
-              if (blob) {
-                const compressedFile = new File([blob], file.name, {
-                  type: file.type,
-                  lastModified: Date.now(),
-                });
-                resolve(compressedFile);
-              } else {
-                resolve(file);
-              }
+              if (blob) resolve(new File([blob], file.name, { type: file.type, lastModified: Date.now() }));
+              else resolve(file);
             },
             file.type,
             quality
@@ -436,5 +181,4 @@ class PhotoService {
   }
 }
 
-// Export singleton instance
 export const photoService = new PhotoService();

@@ -1,4 +1,4 @@
-import { LogIn, LogOut, Menu, X, Search, Shield, LayoutDashboard, MessageSquare } from "lucide-react";
+import { LogIn, LogOut, Menu, X, Search, Shield, LayoutDashboard, MessageSquare, GraduationCap } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -14,16 +14,10 @@ const Navbar = () => {
   useEffect(() => {
     const handleScroll = () => {
       const isScrolled = window.scrollY > 10;
-      if (isScrolled !== scrolled) {
-        setScrolled(isScrolled);
-      }
+      if (isScrolled !== scrolled) setScrolled(isScrolled);
     };
-
     window.addEventListener('scroll', handleScroll, { passive: true });
-
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-    };
+    return () => window.removeEventListener('scroll', handleScroll);
   }, [scrolled]);
 
   const handleSignOut = async () => {
@@ -32,8 +26,8 @@ const Navbar = () => {
   };
 
   return (
-    <nav className={`fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md transition-all duration-300 ${
-      scrolled ? 'shadow-md border-b border-gray-200' : 'border-b border-transparent'
+    <nav className={`fixed top-0 left-0 right-0 z-50 bg-popover/95 backdrop-blur-md transition-all duration-300 ${
+      scrolled ? 'shadow-md border-b border-border' : 'border-b border-transparent'
     }`}>
       <div className="container mx-auto flex items-center justify-between py-4 px-4 md:px-8">
         <Link to="/" className="flex flex-col leading-tight">
@@ -68,6 +62,12 @@ const Navbar = () => {
                 <MessageSquare className="w-4 h-4 stroke-[2.25]" /> Messages
               </Link>
             </>
+          )}
+
+          {user && userRole === "teacher" && (
+            <Link to="/teacher/dashboard" className="flex items-center gap-1.5 text-sm font-medium text-foreground hover:text-primary transition-colors">
+              <GraduationCap className="w-4 h-4 stroke-[2.25]" /> Dashboard
+            </Link>
           )}
 
           {user && userRole === "admin" && (
@@ -110,6 +110,9 @@ const Navbar = () => {
               <Link to="/provider/dashboard" className="block text-sm font-medium text-foreground" onClick={() => setMobileOpen(false)}>Dashboard</Link>
               <Link to="/parent/messages" className="block text-sm font-medium text-foreground" onClick={() => setMobileOpen(false)}>Messages</Link>
             </>
+          )}
+          {user && userRole === "teacher" && (
+            <Link to="/teacher/dashboard" className="block text-sm font-medium text-foreground" onClick={() => setMobileOpen(false)}>Dashboard</Link>
           )}
           {user && userRole === "admin" && (
             <Link to="/admin" className="block text-sm font-medium text-foreground" onClick={() => setMobileOpen(false)}>Admin</Link>

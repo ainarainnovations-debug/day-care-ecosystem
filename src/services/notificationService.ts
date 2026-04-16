@@ -1,48 +1,17 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
-export type NotificationType =
-  | 'child_check_in'
-  | 'child_check_out'
-  | 'teacher_clock_in'
-  | 'teacher_clock_out'
-  | 'booking_confirmed'
-  | 'booking_cancelled'
-  | 'message_received'
-  | 'payment_received'
-  | 'payment_due'
-  | 'time_entry_approved'
-  | 'time_entry_rejected'
-  | 'review_received'
-  | 'activity_logged'
-  | 'alert'
-  | 'system';
+export type NotificationType = string;
 
 export interface Notification {
   id: string;
   user_id: string;
-  type: NotificationType;
+  type: string;
   title: string;
-  message: string;
-  data: Record<string, any>;
-  
-  // Related entities
-  child_id?: string;
-  provider_id?: string;
-  teacher_id?: string;
-  booking_id?: string;
-  
-  // Status
-  read: boolean;
-  read_at?: string;
-  
-  // Metadata
+  body: string | null;
+  is_read: boolean;
+  link: string | null;
   created_at: string;
-  expires_at?: string;
-  
-  // Action
-  action_url?: string;
-  action_label?: string;
 }
 
 export interface NotificationSubscriptionCallback {
@@ -53,9 +22,6 @@ class NotificationService {
   private channel: RealtimeChannel | null = null;
   private callbacks: Set<NotificationSubscriptionCallback> = new Set();
 
-  /**
-   * Get all notifications for the current user
-   */
   async getNotifications(limit = 50, offset = 0): Promise<Notification[]> {
     const { data, error } = await supabase
       .from('notifications')
@@ -71,9 +37,6 @@ class NotificationService {
     return data || [];
   }
 
-  /**
-   * Get unread notifications count
-   */
   async getUnreadCount(): Promise<number> {
     const { data, error } = await supabase.rpc('get_unread_count');
 
@@ -85,14 +48,11 @@ class NotificationService {
     return data || 0;
   }
 
-  /**
-   * Get unread notifications
-   */
   async getUnreadNotifications(): Promise<Notification[]> {
     const { data, error } = await supabase
       .from('notifications')
       .select('*')
-      .eq('read', false)
+      .eq('is_read', false)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -103,9 +63,6 @@ class NotificationService {
     return data || [];
   }
 
-  /**
-   * Mark a notification as read
-   */
   async markAsRead(notificationId: string): Promise<void> {
     const { error } = await supabase.rpc('mark_notification_read', {
       p_notification_id: notificationId,
@@ -117,9 +74,6 @@ class NotificationService {
     }
   }
 
-  /**
-   * Mark all notifications as read
-   */
   async markAllAsRead(): Promise<void> {
     const { error } = await supabase.rpc('mark_all_notifications_read');
 
@@ -129,9 +83,6 @@ class NotificationService {
     }
   }
 
-  /**
-   * Delete a notification
-   */
   async deleteNotification(notificationId: string): Promise<void> {
     const { error } = await supabase
       .from('notifications')
@@ -144,74 +95,43 @@ class NotificationService {
     }
   }
 
-  /**
-   * Create a manual notification (for testing or manual triggers)
-   */
   async createNotification(
     userId: string,
-    type: NotificationType,
+    type: string,
     title: string,
-    message: string,
-    notificationData: Record<string, any> = {},
+    body: string,
     options: {
-      childId?: string;
-      providerId?: string;
-      teacherId?: string;
-      bookingId?: string;
-      actionUrl?: string;
-      actionLabel?: string;
+      link?: string;
     } = {}
   ): Promise<Notification> {
-    const { data: notificationId, error } = await supabase.rpc('create_notification', {
-      p_user_id: userId,
-      p_type: type,
-      p_title: title,
-      p_message: message,
-      p_data: notificationData,
-      p_child_id: options.childId || null,
-      p_provider_id: options.providerId || null,
-      p_teacher_id: options.teacherId || null,
-      p_booking_id: options.bookingId || null,
-      p_action_url: options.actionUrl || null,
-      p_action_label: options.actionLabel || null,
-    });
+    const { data, error } = await supabase
+      .from('notifications')
+      .insert({
+        user_id: userId,
+        type,
+        title,
+        body,
+        link: options.link || null,
+      })
+      .select()
+      .single();
 
     if (error) {
       console.error('Error creating notification:', error);
       throw error;
     }
 
-    // Fetch the created notification
-    const { data: notification, error: fetchError } = await supabase
-      .from('notifications')
-      .select('*')
-      .eq('id', notificationId)
-      .single();
-
-    if (fetchError) {
-      console.error('Error fetching created notification:', fetchError);
-      throw fetchError;
-    }
-
-    return notification;
+    return data;
   }
 
-  /**
-   * Subscribe to real-time notifications
-   */
   async subscribe(
     userId: string,
     callback: NotificationSubscriptionCallback
   ): Promise<void> {
-    // Add callback to set
     this.callbacks.add(callback);
 
-    // If channel already exists, don't create a new one
-    if (this.channel) {
-      return;
-    }
+    if (this.channel) return;
 
-    // Create channel for user's notifications
     this.channel = supabase
       .channel(`notifications:${userId}`)
       .on(
@@ -224,43 +144,22 @@ class NotificationService {
         },
         (payload) => {
           const notification = payload.new as Notification;
-          
-          // Call all registered callbacks
           this.callbacks.forEach((cb) => {
-            try {
-              cb(notification);
-            } catch (error) {
-              console.error('Error in notification callback:', error);
-            }
+            try { cb(notification); } catch (error) { console.error('Error in notification callback:', error); }
           });
         }
       )
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          console.log('✅ Subscribed to notifications');
-        } else if (status === 'CHANNEL_ERROR') {
-          console.error('❌ Error subscribing to notifications');
-        } else if (status === 'TIMED_OUT') {
-          console.error('⏱️ Subscription timed out');
-        }
-      });
+      .subscribe();
   }
 
-  /**
-   * Unsubscribe from real-time notifications
-   */
   async unsubscribe(callback?: NotificationSubscriptionCallback): Promise<void> {
     if (callback) {
-      // Remove specific callback
       this.callbacks.delete(callback);
-      
-      // If no more callbacks, remove channel
       if (this.callbacks.size === 0 && this.channel) {
         await supabase.removeChannel(this.channel);
         this.channel = null;
       }
     } else {
-      // Remove all callbacks and channel
       this.callbacks.clear();
       if (this.channel) {
         await supabase.removeChannel(this.channel);
@@ -269,9 +168,6 @@ class NotificationService {
     }
   }
 
-  /**
-   * Get notification by ID
-   */
   async getNotificationById(notificationId: string): Promise<Notification | null> {
     const { data, error } = await supabase
       .from('notifications')
@@ -287,13 +183,7 @@ class NotificationService {
     return data;
   }
 
-  /**
-   * Get notifications by type
-   */
-  async getNotificationsByType(
-    type: NotificationType,
-    limit = 20
-  ): Promise<Notification[]> {
+  async getNotificationsByType(type: string, limit = 20): Promise<Notification[]> {
     const { data, error } = await supabase
       .from('notifications')
       .select('*')
@@ -309,72 +199,30 @@ class NotificationService {
     return data || [];
   }
 
-  /**
-   * Get notifications for a specific child
-   */
-  async getChildNotifications(childId: string, limit = 20): Promise<Notification[]> {
-    const { data, error } = await supabase
-      .from('notifications')
-      .select('*')
-      .eq('child_id', childId)
-      .order('created_at', { ascending: false })
-      .limit(limit);
-
-    if (error) {
-      console.error('Error fetching child notifications:', error);
-      throw error;
-    }
-
-    return data || [];
-  }
-
-  /**
-   * Request browser notification permission
-   */
   async requestBrowserPermission(): Promise<NotificationPermission> {
-    if (!('Notification' in window)) {
-      console.warn('Browser does not support notifications');
-      return 'denied';
-    }
-
-    if (Notification.permission === 'granted') {
-      return 'granted';
-    }
-
+    if (!('Notification' in window)) return 'denied';
+    if (Notification.permission === 'granted') return 'granted';
     if (Notification.permission !== 'denied') {
-      const permission = await Notification.requestPermission();
-      return permission;
+      return await Notification.requestPermission();
     }
-
     return Notification.permission;
   }
 
-  /**
-   * Show browser notification
-   */
   showBrowserNotification(notification: Notification): void {
-    if (!('Notification' in window) || Notification.permission !== 'granted') {
-      return;
-    }
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
 
-    const browserNotification = new Notification(notification.title, {
-      body: notification.message,
+    const browserNotification = new window.Notification(notification.title, {
+      body: notification.body || undefined,
       icon: '/favicon.ico',
-      badge: '/favicon.ico',
       tag: notification.id,
-      requireInteraction: false,
-      silent: false,
     });
 
     browserNotification.onclick = () => {
       window.focus();
-      if (notification.action_url) {
-        window.location.href = notification.action_url;
-      }
+      if (notification.link) window.location.href = notification.link;
       browserNotification.close();
     };
   }
 }
 
-// Export singleton instance
 export const notificationService = new NotificationService();
