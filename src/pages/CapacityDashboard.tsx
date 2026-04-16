@@ -5,8 +5,22 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
-import { Users, TrendingUp, AlertCircle, Info, Settings } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Users, TrendingUp, AlertCircle, Info, Settings, Bell, LayoutDashboard, Calendar, Baby, Activity, Wallet, CalendarClock, Timer, KeyRound, Inbox, PencilLine, Rocket, DollarSign } from 'lucide-react';
 import Navbar from '@/components/Navbar';
+
+const sidebarItems = [
+  { id: "today", label: "Today", icon: LayoutDashboard, path: "/provider/dashboard" },
+  { id: "capacity", label: "Capacity", icon: Users, path: "/provider/capacity" },
+  { id: "payments", label: "Payments", icon: DollarSign, path: "/provider/payments" },
+  { id: "schedule", label: "Schedule", icon: Calendar, path: "/provider/dashboard" },
+  { id: "children", label: "Children", icon: Baby, path: "/provider/dashboard" },
+  { id: "activity", label: "Log Activity", icon: Activity, path: "/provider/dashboard" },
+  { id: "billing", label: "Billing", icon: Wallet, path: "/provider/dashboard" },
+  { id: "availability", label: "Availability", icon: CalendarClock, path: "/provider/dashboard" },
+  { id: "timelabor", label: "Time & Labor", icon: Timer, path: "/provider/dashboard" },
+  { id: "settings", label: "Settings", icon: Settings, path: "/provider/dashboard" },
+];
 
 interface Classroom {
   id: string;
@@ -35,16 +49,63 @@ export default function CapacityDashboard() {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <div className="pt-20 p-6 max-w-7xl mx-auto space-y-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Capacity Management</h1>
-            <p className="text-muted-foreground">Real-time enrollment capacity monitoring</p>
+      <div className="flex">
+        {/* Left sidebar */}
+        <aside className="w-64 min-h-[calc(100vh-64px)] bg-popover border-r border-border p-4 flex-shrink-0 hidden md:flex flex-col gap-1">
+          <div className="mb-4 px-3">
+            <h2 className="font-heading text-lg font-bold text-foreground flex items-center gap-2">
+              <LayoutDashboard className="w-5 h-5 stroke-[2.25]" /> Provider
+            </h2>
+            <p className="text-xs text-muted-foreground">Sunshine Home Daycare</p>
           </div>
-          <Button onClick={() => navigate('/provider/dashboard')} variant="outline">
-            <Settings className="mr-2 h-4 w-4" />Back to Dashboard
-          </Button>
-        </div>
+          {sidebarItems.map((item) => {
+            const SideIcon = item.icon;
+            const isActive = item.id === "capacity";
+            return (
+              <Tooltip key={item.id}>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => navigate(item.path)}
+                    className={`group flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-sm font-body transition-all duration-200 w-full relative ${
+                      isActive
+                        ? "bg-primary/10 text-primary font-semibold"
+                        : "text-muted-foreground hover:bg-secondary hover:text-foreground hover:translate-x-1"
+                    }`}
+                  >
+                    {isActive && (
+                      <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-primary rounded-r-full" />
+                    )}
+                    <SideIcon className={`w-[18px] h-[18px] flex-shrink-0 transition-transform duration-200 group-hover:scale-110 ${isActive ? "stroke-[2.5]" : "stroke-[2.25] group-hover:stroke-[2.5]"}`} />
+                    {item.label}
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="text-xs">
+                  {item.label}
+                </TooltipContent>
+              </Tooltip>
+            );
+          })}
+        </aside>
+
+        {/* Main content */}
+        <main className="flex-1 p-6 md:p-8 max-w-5xl animate-fade-in">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h1 className="font-heading text-xl md:text-2xl font-bold text-foreground flex items-center gap-2">
+                <Users className="w-6 h-6 stroke-[2.25]" />
+                Capacity Management
+              </h1>
+              <p className="text-sm text-muted-foreground mt-0.5">Real-time enrollment capacity monitoring</p>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm">
+                <Settings className="w-4 h-4" />
+              </Button>
+              <Button variant="outline" size="sm" className="relative">
+                <Bell className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
 
         <Alert>
           <Info className="h-4 w-4" />
@@ -103,6 +164,7 @@ export default function CapacityDashboard() {
             })}
           </div>
         </div>
+        </main>
       </div>
     </div>
   );
