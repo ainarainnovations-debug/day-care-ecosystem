@@ -27,6 +27,7 @@ import FormBuilder from "./pages/FormBuilder.tsx";
 import ApplicationInbox from "./pages/ApplicationInbox.tsx";
 import EnrollmentForm from "./pages/EnrollmentForm.tsx";
 import CapacityDashboard from "./pages/CapacityDashboard.tsx";
+import PaymentDashboard from "./pages/PaymentDashboard.tsx";
 
 const queryClient = new QueryClient();
 
@@ -76,6 +77,9 @@ const App = () => (
             } />
             <Route path="/provider/capacity" element={
               <ProtectedRoute allowedRoles={["provider"]}><CapacityDashboard /></ProtectedRoute>
+            } />
+            <Route path="/provider/payments" element={
+              <ProtectedRoute allowedRoles={["provider"]}><PaymentDashboard /></ProtectedRoute>
             } />
             <Route path="/enroll/:token" element={<EnrollmentForm />} />
             <Route path="/admin" element={
