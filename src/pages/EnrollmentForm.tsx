@@ -104,7 +104,7 @@ export default function EnrollmentForm() {
         <Card>
           <CardHeader><CardTitle>Parent/Guardian Signature</CardTitle></CardHeader>
           <CardContent>
-            <MobileSignaturePad onSignature={setSignature} existingSignature={signature} />
+            <MobileSignaturePad signature={signature} onSignatureChange={setSignature} />
           </CardContent>
         </Card>
 
