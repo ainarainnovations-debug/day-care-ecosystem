@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,8 @@ import ProviderTimeLabor from "@/components/provider/ProviderTimeLabor";
 import ProviderSettings from "@/components/provider/ProviderSettings";
 import ProviderSetupChecklist from "@/components/provider/ProviderSetupChecklist";
 import ProviderProfileEditor from "@/components/provider/ProviderProfileEditor";
+import { useAuth } from "@/hooks/useAuth";
+import { providerDashboardService } from "@/services/providerDashboardService";
 
 type ProviderTab = "today" | "schedule" | "children" | "activity" | "billing" | "availability" | "timelabor" | "invites" | "applications" | "editprofile" | "setup" | "settings";
 
@@ -34,28 +37,54 @@ const sidebarItems: { id: ProviderTab; label: string; icon: React.ElementType }[
   { id: "settings", label: "Settings", icon: Settings },
 ];
 
-const todayKids = [
-  { id: 1, name: "Emma S.", age: "2y", arrived: "7:15 AM", parent: "Sarah", status: "present", allergies: "None" },
-  { id: 2, name: "Noah T.", age: "3y", arrived: "7:30 AM", parent: "Jessica", status: "present", allergies: "Dairy" },
-  { id: 3, name: "Olivia R.", age: "1y", arrived: "8:00 AM", parent: "Michael", status: "present", allergies: "None" },
-  { id: 4, name: "Liam K.", age: "4y", arrived: "—", parent: "Amanda", status: "expected", allergies: "Peanuts" },
-  { id: 5, name: "Ava M.", age: "2y", arrived: "—", parent: "David", status: "absent", allergies: "None" },
-];
-
-const pendingBookings = [
-  { id: 1, parent: "Lisa Chen", child: "Sophia", date: "Jan 20", type: "Full Day", price: 65 },
-  { id: 2, parent: "Mark Johnson", child: "Ethan", date: "Jan 22", type: "Half Day (AM)", price: 40 },
-];
-
-const invoices = [
-  { id: 1, parent: "Sarah Smith", amount: 1300, period: "Jan 1-15", status: "paid" },
-  { id: 2, parent: "Jessica Taylor", amount: 1300, period: "Jan 1-15", status: "paid" },
-  { id: 3, parent: "Michael Rodriguez", amount: 650, period: "Jan 1-15", status: "pending" },
-  { id: 4, parent: "Amanda Kim", amount: 1300, period: "Jan 1-15", status: "overdue" },
-];
-
 const ProviderDashboard = () => {
   const [activeTab, setActiveTab] = useState<ProviderTab>("today");
+  const { user } = useAuth();
+
+  // Fetch real-time dashboard data
+  const { data: stats, isLoading: statsLoading } = useQuery({
+    queryKey: ['provider-stats', user?.id],
+    queryFn: () => providerDashboardService.getDashboardStats(user!.id),
+    enabled: !!user?.id,
+  });
+
+  const { data: todayKids = [], isLoading: attendanceLoading } = useQuery({
+    queryKey: ['todays-attendance', user?.id],
+    queryFn: () => providerDashboardService.getTodaysAttendance(user!.id),
+    enabled: !!user?.id,
+  });
+
+  const { data: pendingBookings = [], isLoading: bookingsLoading } = useQuery({
+    queryKey: ['pending-bookings', user?.id],
+    queryFn: () => providerDashboardService.getPendingBookings(user!.id),
+    enabled: !!user?.id,
+  });
+
+  const { data: enrolledChildren = [], isLoading: childrenLoading } = useQuery({
+    queryKey: ['enrolled-children', user?.id],
+    queryFn: () => providerDashboardService.getEnrolledChildren(user!.id),
+    enabled: !!user?.id,
+  });
+
+  // Temporary fallback for invoices (can be moved to paymentService later)
+  const invoices = [
+    { id: 1, parent: "Sarah Smith", amount: 1300, period: "Jan 1-15", status: "paid" },
+    { id: 2, parent: "Jessica Taylor", amount: 1300, period: "Jan 1-15", status: "paid" },
+    { id: 3, parent: "Michael Rodriguez", amount: 650, period: "Jan 1-15", status: "pending" },
+    { id: 4, parent: "Amanda Kim", amount: 1300, period: "Jan 1-15", status: "overdue" },
+  ];
+
+  // Show loading state
+  if (statsLoading || attendanceLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading dashboard data...</p>
+        </div>
+      </div>
+    );
+  }
 
   const renderContent = () => {
     switch (activeTab) {
@@ -65,11 +94,11 @@ const ProviderDashboard = () => {
             {pendingBookings.length > 0 && (
               <div className="bg-light-coral/30 rounded-xl border border-primary/20 p-5">
                 <h3 className="font-heading font-semibold text-foreground mb-3">Pending Booking Requests</h3>
-                {pendingBookings.map((b) => (
+                {pendingBookings.map((b: any) => (
                   <div key={b.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
                     <div>
-                      <span className="font-medium text-foreground">{b.parent}</span>
-                      <span className="text-sm text-muted-foreground"> — {b.child} • {b.date} • {b.type}</span>
+                      <span className="font-medium text-foreground">{b.parent_name}</span>
+                      <span className="text-sm text-muted-foreground"> — {b.child_name} • {new Date(b.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} • {b.booking_type}</span>
                     </div>
                     <div className="flex gap-2">
                       <Button size="sm" className="bg-accent text-accent-foreground h-8"><Check className="w-3 h-3 mr-1" />Accept</Button>
@@ -130,26 +159,59 @@ const ProviderDashboard = () => {
                 <h3 className="font-heading font-semibold text-foreground">Today's Attendance</h3>
               </div>
               <div className="divide-y divide-border">
-                {todayKids.map((kid) => (
-                  <div key={kid.id} className="p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-light-sage rounded-full flex items-center justify-center text-sm">👶</div>
-                      <div>
-                        <div className="font-medium text-foreground">{kid.name} <span className="text-xs text-muted-foreground">({kid.age})</span></div>
-                        <div className="text-xs text-muted-foreground">Parent: {kid.parent} {kid.allergies !== "None" && <Badge variant="outline" className="ml-1 text-xs text-destructive border-destructive/30">⚠️ {kid.allergies}</Badge>}</div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      {kid.arrived !== "—" && <span className="text-xs text-muted-foreground">Arrived {kid.arrived}</span>}
-                      <Badge className={
-                        kid.status === "present" ? "bg-accent text-accent-foreground" :
-                        kid.status === "expected" ? "bg-secondary text-foreground" :
-                        "bg-muted text-muted-foreground"
-                      }>{kid.status}</Badge>
-                      <Button variant="outline" size="sm">Check {kid.status === "present" ? "out" : "in"}</Button>
-                    </div>
+                {todayKids.length === 0 ? (
+                  <div className="p-8 text-center text-muted-foreground">
+                    No children checked in today
                   </div>
-                ))}
+                ) : (
+                  todayKids.map((kid: any) => {
+                    const checkInTime = kid.check_in_time ? new Date(kid.check_in_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : null;
+                    const isCheckedIn = !!kid.check_in_time && !kid.check_out_time;
+                    
+                    return (
+                      <div key={kid.id} className="p-4 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-light-sage rounded-full flex items-center justify-center text-sm">👶</div>
+                          <div>
+                            <div className="font-medium text-foreground">
+                              {kid.child_name} 
+                              {kid.date_of_birth && (
+                                <span className="text-xs text-muted-foreground ml-1">
+                                  ({Math.floor((new Date().getTime() - new Date(kid.date_of_birth).getTime()) / (365.25 * 24 * 60 * 60 * 1000))}y)
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              Parent: {kid.parent_name}
+                              {kid.allergies && kid.allergies !== "None" && (
+                                <Badge variant="outline" className="ml-1 text-xs text-destructive border-destructive/30">
+                                  ⚠️ {kid.allergies}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          {checkInTime && <span className="text-xs text-muted-foreground">Arrived {checkInTime}</span>}
+                          <Badge className={isCheckedIn ? "bg-accent text-accent-foreground" : "bg-secondary text-foreground"}>
+                            {isCheckedIn ? "present" : "checked out"}
+                          </Badge>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => {
+                              if (isCheckedIn && kid.attendance_id) {
+                                providerDashboardService.checkOutChild(kid.attendance_id);
+                              }
+                            }}
+                          >
+                            Check {isCheckedIn ? "out" : "in"}
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
               </div>
             </div>
           </div>
@@ -159,22 +221,42 @@ const ProviderDashboard = () => {
       case "children":
         return (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {todayKids.map((kid) => (
-              <div key={kid.id} className="bg-popover rounded-xl border border-border p-5">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-14 h-14 bg-light-sage rounded-full flex items-center justify-center text-xl">👶</div>
-                  <div>
-                    <h3 className="font-heading font-semibold text-foreground">{kid.name}</h3>
-                    <p className="text-sm text-muted-foreground">Age: {kid.age}</p>
+            {childrenLoading ? (
+              <div className="col-span-full text-center py-8 text-muted-foreground">Loading children...</div>
+            ) : enrolledChildren.length === 0 ? (
+              <div className="col-span-full text-center py-8 text-muted-foreground">No enrolled children</div>
+            ) : (
+              enrolledChildren.map((kid: any) => {
+                const age = kid.date_of_birth 
+                  ? Math.floor((new Date().getTime() - new Date(kid.date_of_birth).getTime()) / (365.25 * 24 * 60 * 60 * 1000))
+                  : null;
+                
+                return (
+                  <div key={kid.id} className="bg-popover rounded-xl border border-border p-5">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-14 h-14 bg-light-sage rounded-full flex items-center justify-center text-xl">👶</div>
+                      <div>
+                        <h3 className="font-heading font-semibold text-foreground">{kid.first_name} {kid.last_name}</h3>
+                        <p className="text-sm text-muted-foreground">Age: {age ? `${age}y` : 'N/A'}</p>
+                      </div>
+                    </div>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Parent</span>
+                        <span className="text-foreground">{kid.parent_name || 'N/A'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Allergies</span>
+                        <span className={kid.allergies && kid.allergies !== "None" ? "text-destructive font-medium" : "text-foreground"}>
+                          {kid.allergies || "None"}
+                        </span>
+                      </div>
+                    </div>
+                    <Button variant="outline" size="sm" className="w-full mt-4">View Full Profile</Button>
                   </div>
-                </div>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between"><span className="text-muted-foreground">Parent</span><span className="text-foreground">{kid.parent}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Allergies</span><span className={kid.allergies !== "None" ? "text-destructive font-medium" : "text-foreground"}>{kid.allergies}</span></div>
-                </div>
-                <Button variant="outline" size="sm" className="w-full mt-4">View Full Profile</Button>
-              </div>
-            ))}
+                );
+              })
+            )}
           </div>
         );
       case "activity":
@@ -201,8 +283,10 @@ const ProviderDashboard = () => {
             <div className="space-y-3">
               <label className="text-sm font-medium text-foreground">Select children</label>
               <div className="flex flex-wrap gap-2">
-                {todayKids.filter(k => k.status === "present").map((kid) => (
-                  <Badge key={kid.id} variant="outline" className="cursor-pointer hover:bg-primary hover:text-primary-foreground">{kid.name}</Badge>
+                {todayKids.filter((k: any) => k.check_in_time && !k.check_out_time).map((kid: any) => (
+                  <Badge key={kid.id} variant="outline" className="cursor-pointer hover:bg-primary hover:text-primary-foreground">
+                    {kid.child_name}
+                  </Badge>
                 ))}
                 <Badge variant="outline" className="cursor-pointer bg-primary text-primary-foreground">All</Badge>
               </div>
@@ -358,10 +442,34 @@ const ProviderDashboard = () => {
           {activeTab === "today" && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               {[
-                { label: "Kids Today", value: "3/5", sub: "2 expected", icon: <Users className="w-5 h-5 text-primary" />, progress: 60 },
-                { label: "Capacity", value: "6/8", sub: "2 spots open", icon: <Calendar className="w-5 h-5 text-accent" />, progress: 75 },
-                { label: "This Month", value: "$3,250", sub: "+12% vs last", icon: <DollarSign className="w-5 h-5 text-primary" />, progress: null },
-                { label: "Pending", value: "2", sub: "booking requests", icon: <Clock className="w-5 h-5 text-muted-foreground" />, progress: null },
+                { 
+                  label: "Kids Today", 
+                  value: stats?.kidsToday || "0/0", 
+                  sub: `${todayKids.filter((k: any) => !k.check_in_time).length} expected`, 
+                  icon: <Users className="w-5 h-5 text-primary" />, 
+                  progress: stats?.kidsToday ? (parseInt(stats.kidsToday.split('/')[0]) / parseInt(stats.kidsToday.split('/')[1])) * 100 : 0 
+                },
+                { 
+                  label: "Capacity", 
+                  value: stats?.capacity || "0/0", 
+                  sub: `${stats?.capacity ? parseInt(stats.capacity.split('/')[1]) - parseInt(stats.capacity.split('/')[0]) : 0} spots open`, 
+                  icon: <Calendar className="w-5 h-5 text-accent" />, 
+                  progress: stats?.capacity ? (parseInt(stats.capacity.split('/')[0]) / parseInt(stats.capacity.split('/')[1])) * 100 : 0 
+                },
+                { 
+                  label: "This Month", 
+                  value: `$${stats?.monthlyRevenue?.toLocaleString() || '0'}`, 
+                  sub: "+12% vs last", 
+                  icon: <DollarSign className="w-5 h-5 text-primary" />, 
+                  progress: null 
+                },
+                { 
+                  label: "Pending", 
+                  value: stats?.pendingBookings?.toString() || "0", 
+                  sub: "booking requests", 
+                  icon: <Clock className="w-5 h-5 text-muted-foreground" />, 
+                  progress: null 
+                },
               ].map((stat) => (
                 <div key={stat.label} className="bg-popover rounded-xl border border-border p-4">
                   <div className="flex items-center gap-2 mb-2">{stat.icon}<span className="text-sm text-muted-foreground">{stat.label}</span></div>
