@@ -60,11 +60,19 @@ const timeToPosition = (time: string) => {
   return ((h - 6) + m / 60); // hours from 6 AM
 };
 
-const BookingSchedule = () => {
+interface BookingScheduleProps {
+  bookings?: ScheduleBooking[];
+  isLoading?: boolean;
+}
+
+const BookingSchedule = ({ bookings, isLoading }: BookingScheduleProps) => {
   const [view, setView] = useState<ViewMode>("week");
   const [currentDate, setCurrentDate] = useState(new Date(2026, 3, 13)); // April 13, 2026
   const [filter, setFilter] = useState<string>("all");
   const [selectedBooking, setSelectedBooking] = useState<ScheduleBooking | null>(null);
+
+  // Use provided bookings or fall back to mock data
+  const allBookings = bookings || mockBookings;
 
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -76,9 +84,9 @@ const BookingSchedule = () => {
   };
 
   const filteredBookings = useMemo(() => {
-    if (filter === "all") return mockBookings;
-    return mockBookings.filter(b => b.type === filter);
-  }, [filter]);
+    if (filter === "all") return allBookings;
+    return allBookings.filter(b => b.type === filter);
+  }, [filter, allBookings]);
 
   const getBookingsForDay = (date: Date) =>
     filteredBookings.filter(b => isSameDay(new Date(b.date), date));

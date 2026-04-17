@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { format } from "date-fns";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,8 @@ import ProviderSetupChecklist from "@/components/provider/ProviderSetupChecklist
 import ProviderProfileEditor from "@/components/provider/ProviderProfileEditor";
 import { useAuth } from "@/hooks/useAuth";
 import { providerDashboardService } from "@/services/providerDashboardService";
+import { paymentService } from "@/services/paymentService";
+import { capacityService } from "@/services/capacityService";
 
 type ProviderTab = "today" | "schedule" | "children" | "activity" | "billing" | "availability" | "timelabor" | "invites" | "applications" | "editprofile" | "setup" | "settings";
 
@@ -66,13 +69,26 @@ const ProviderDashboard = () => {
     enabled: !!user?.id,
   });
 
-  // Temporary fallback for invoices (can be moved to paymentService later)
-  const invoices = [
-    { id: 1, parent: "Sarah Smith", amount: 1300, period: "Jan 1-15", status: "paid" },
-    { id: 2, parent: "Jessica Taylor", amount: 1300, period: "Jan 1-15", status: "paid" },
-    { id: 3, parent: "Michael Rodriguez", amount: 650, period: "Jan 1-15", status: "pending" },
-    { id: 4, parent: "Amanda Kim", amount: 1300, period: "Jan 1-15", status: "overdue" },
-  ];
+  // Fetch invoices for billing tab
+  const { data: invoices = [], isLoading: invoicesLoading } = useQuery({
+    queryKey: ['provider-invoices', user?.id],
+    queryFn: () => paymentService.getInvoices(user!.id),
+    enabled: !!user?.id,
+  });
+
+  // Fetch all bookings for schedule view
+  const { data: allBookings = [], isLoading: bookingsScheduleLoading } = useQuery({
+    queryKey: ['all-bookings', user?.id],
+    queryFn: () => providerDashboardService.getAllBookings(user!.id),
+    enabled: !!user?.id,
+  });
+
+  // Fetch capacity stats for availability tab
+  const { data: capacityStats, isLoading: capacityLoading } = useQuery({
+    queryKey: ['capacity-stats', user?.id],
+    queryFn: () => capacityService.getCapacityStats(user!.id),
+    enabled: !!user?.id,
+  });
 
   // Show loading state
   if (statsLoading || attendanceLoading) {
@@ -217,7 +233,7 @@ const ProviderDashboard = () => {
           </div>
         );
       case "schedule":
-        return <BookingSchedule />;
+        return <BookingSchedule bookings={allBookings} isLoading={bookingsScheduleLoading} />;
       case "children":
         return (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -299,49 +315,92 @@ const ProviderDashboard = () => {
         return (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="font-heading text-lg font-semibold text-foreground">Invoices — January 2025</h3>
-              <Button size="sm" className="bg-primary text-primary-foreground"><Plus className="w-4 h-4 mr-1" /> Create Invoice</Button>
+              <h3 className="font-heading text-lg font-semibold text-foreground">
+                Invoices — {format(new Date(), 'MMMM yyyy')}
+              </h3>
+              <Button size="sm" className="bg-primary text-primary-foreground">
+                <Plus className="w-4 h-4 mr-1" /> Create Invoice
+              </Button>
             </div>
             <div className="bg-popover rounded-xl border border-border overflow-hidden">
-              <div className="divide-y divide-border">
-                {invoices.map((inv) => (
-                  <div key={inv.id} className="p-4 flex items-center justify-between">
-                    <div>
-                      <div className="font-medium text-foreground">{inv.parent}</div>
-                      <div className="text-sm text-muted-foreground">{inv.period}</div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="font-semibold text-foreground">${inv.amount}</span>
-                      <Badge className={
-                        inv.status === "paid" ? "bg-accent text-accent-foreground" :
-                        inv.status === "pending" ? "bg-secondary text-foreground" :
-                        "bg-destructive text-destructive-foreground"
-                      }>{inv.status}</Badge>
-                      <Button variant="outline" size="sm"><FileText className="w-3 h-3 mr-1" />View</Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              {invoicesLoading ? (
+                <div className="p-8 text-center text-muted-foreground">Loading invoices...</div>
+              ) : invoices.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground">No invoices found</div>
+              ) : (
+                <div className="divide-y divide-border">
+                  {invoices.map((inv: any) => {
+                    const dueDate = inv.due_date ? new Date(inv.due_date) : null;
+                    const isOverdue = dueDate && dueDate < new Date() && inv.status === 'sent';
+                    const displayStatus = isOverdue ? 'overdue' : inv.status;
+                    
+                    return (
+                      <div key={inv.id} className="p-4 flex items-center justify-between">
+                        <div>
+                          <div className="font-medium text-foreground">{inv.parent_name || 'Unknown Parent'}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {inv.issue_date && format(new Date(inv.issue_date), 'MMM d')}
+                            {dueDate && ` - Due ${format(dueDate, 'MMM d')}`}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="font-semibold text-foreground">
+                            ${inv.total_amount?.toFixed(2) || '0.00'}
+                          </span>
+                          <Badge className={
+                            displayStatus === "succeeded" || displayStatus === "paid" ? "bg-accent text-accent-foreground" :
+                            displayStatus === "sent" || displayStatus === "pending" ? "bg-secondary text-foreground" :
+                            "bg-destructive text-destructive-foreground"
+                          }>
+                            {displayStatus}
+                          </Badge>
+                          <Button variant="outline" size="sm">
+                            <FileText className="w-3 h-3 mr-1" />View
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         );
       case "availability":
+        const totalCapacity = capacityStats?.totalCapacity || 0;
+        const totalEnrolled = capacityStats?.totalEnrolled || 0;
+        const utilizationPercent = totalCapacity > 0 ? (totalEnrolled / totalCapacity) * 100 : 0;
+        
         return (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="bg-popover rounded-xl border border-border p-6">
               <h3 className="font-heading text-lg font-semibold text-foreground mb-4">Capacity Settings</h3>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-foreground">Maximum capacity</span>
-                  <Input type="number" defaultValue={8} className="w-20 text-center" />
+              {capacityLoading ? (
+                <div className="text-center py-4 text-muted-foreground">Loading capacity data...</div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-foreground">Maximum capacity</span>
+                    <Input type="number" value={totalCapacity} readOnly className="w-20 text-center" />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-foreground">Current enrolled</span>
+                    <span className="font-semibold text-foreground">{totalEnrolled}</span>
+                  </div>
+                  <Progress value={utilizationPercent} className="h-3" />
+                  <p className="text-sm text-accent font-medium">
+                    {capacityStats?.totalAvailable || 0} spots available
+                  </p>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full"
+                    onClick={() => window.location.href = '/provider/capacity'}
+                  >
+                    Manage Capacity
+                  </Button>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-foreground">Current enrolled</span>
-                  <span className="font-semibold text-foreground">6</span>
-                </div>
-                <Progress value={75} className="h-3" />
-                <p className="text-sm text-accent font-medium">2 spots available</p>
-              </div>
+              )}
             </div>
             <div className="bg-popover rounded-xl border border-border p-6">
               <h3 className="font-heading text-lg font-semibold text-foreground mb-4">Operating Hours</h3>

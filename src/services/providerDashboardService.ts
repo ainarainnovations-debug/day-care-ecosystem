@@ -147,4 +147,35 @@ export const providerDashboardService = {
     if (error) throw error;
     return data;
   },
+
+  // Get all bookings for schedule view
+  async getAllBookings(providerId: string) {
+    const { data, error } = await (supabase as any)
+      .from('bookings')
+      .select(`
+        *,
+        children!inner(first_name, last_name),
+        profiles!bookings_parent_id_fkey(full_name)
+      `)
+      .eq('provider_id', providerId)
+      .order('start_date', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching bookings:', error);
+      return [];
+    }
+
+    // Transform to match BookingSchedule interface
+    return (data || []).map((booking: any) => ({
+      id: booking.id,
+      childName: `${booking.children?.first_name || ''} ${booking.children?.last_name || ''}`.trim(),
+      parentName: booking.profiles?.full_name || 'Unknown Parent',
+      date: booking.start_date,
+      startTime: booking.start_time || '07:00',
+      endTime: booking.end_time || '15:00',
+      type: booking.booking_type || 'full_day',
+      status: booking.status || 'pending',
+      notes: booking.notes,
+    }));
+  },
 };
