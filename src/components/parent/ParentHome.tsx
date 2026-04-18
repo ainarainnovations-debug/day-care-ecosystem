@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Badge } from "@/components/ui/badge";
@@ -6,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ChevronRight, CheckCircle, AlertTriangle, Heart, Utensils, Apple, Drumstick, ArrowRight, Calendar, DollarSign } from "lucide-react";
 import { getChildPhoto } from "@/assets/childPhotos";
 import type { ParentTab } from "@/pages/ParentDashboard";
+import { parentDashboardService } from "@/services/parentDashboardService";
 
 interface ParentHomeProps {
   onNavigate: (tab: ParentTab) => void;
@@ -14,24 +16,47 @@ interface ParentHomeProps {
 const ParentHome = ({ onNavigate }: ParentHomeProps) => {
   const { user } = useAuth();
   const [profile, setProfile] = useState<any>(null);
-  const [children, setChildren] = useState<any[]>([]);
   const [selectedChild, setSelectedChild] = useState<any>(null);
+
+  // Fetch real data using parent dashboard service
+  const { data: children = [] } = useQuery({
+    queryKey: ['my-children', user?.id],
+    queryFn: () => parentDashboardService.getMyChildren(user!.id),
+    enabled: !!user?.id,
+  });
+
+  const { data: stats } = useQuery({
+    queryKey: ['parent-stats', user?.id],
+    queryFn: () => parentDashboardService.getDashboardStats(user!.id),
+    enabled: !!user?.id,
+  });
+
+  const { data: todaysAttendance = [] } = useQuery({
+    queryKey: ['todays-attendance-parent', user?.id],
+    queryFn: () => parentDashboardService.getTodaysAttendance(user!.id),
+    enabled: !!user?.id,
+  });
+
+  const { data: upcomingBookings = [] } = useQuery({
+    queryKey: ['my-bookings', user?.id],
+    queryFn: () => parentDashboardService.getMyBookings(user!.id),
+    enabled: !!user?.id,
+  });
 
   useEffect(() => {
     if (!user) return;
     const fetchData = async () => {
-      const [profileRes, childrenRes] = await Promise.all([
-        supabase.from("profiles").select("*").eq("user_id", user.id).single(),
-        supabase.from("children").select("*").eq("parent_id", user.id),
-      ]);
+      const profileRes = await supabase.from("profiles").select("*").eq("user_id", user.id).single();
       setProfile(profileRes.data);
-      setChildren(childrenRes.data || []);
-      if (childrenRes.data && childrenRes.data.length > 0) {
-        setSelectedChild(childrenRes.data[0]);
-      }
     };
     fetchData();
   }, [user]);
+
+  useEffect(() => {
+    if (children.length > 0 && !selectedChild) {
+      setSelectedChild(children[0]);
+    }
+  }, [children, selectedChild]);
 
   const displayName = profile?.display_name || user?.email?.split("@")[0] || "Parent";
   const childAge = selectedChild?.date_of_birth
@@ -89,15 +114,41 @@ const ParentHome = ({ onNavigate }: ParentHomeProps) => {
       )}
 
       {/* Check-in Status */}
-      <div className="bg-popover rounded-xl border border-border p-4 mb-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <CheckCircle className="w-4 h-4 text-accent" />
-            <span className="text-sm text-muted-foreground">Check_In at</span>
+      {todaysAttendance.length > 0 ? (
+        todaysAttendance.map((attendance: any) => {
+          const checkInTime = attendance.check_in_time 
+            ? new Date(attendance.check_in_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+            : null;
+          const checkOutTime = attendance.check_out_time
+            ? new Date(attendance.check_out_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+            : null;
+          
+          return (
+            <div key={attendance.id} className="bg-popover rounded-xl border border-border p-4 mb-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-accent" />
+                  <span className="text-sm text-muted-foreground">
+                    {checkOutTime ? 'Checked out at' : 'Checked in at'}
+                  </span>
+                </div>
+                <span className="font-semibold text-foreground">
+                  {checkOutTime || checkInTime || 'Not checked in'}
+                </span>
+              </div>
+            </div>
+          );
+        })
+      ) : (
+        <div className="bg-popover rounded-xl border border-border p-4 mb-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">Not checked in today</span>
+            </div>
           </div>
-          <span className="font-semibold text-foreground">8:00 AM Today</span>
         </div>
-      </div>
+      )}
 
       {/* AI Summary */}
       <div className="bg-popover rounded-xl border border-border p-4 mb-4">
@@ -180,21 +231,46 @@ const ParentHome = ({ onNavigate }: ParentHomeProps) => {
           <h3 className="font-heading font-semibold text-foreground">Billing</h3>
           <button onClick={() => onNavigate("billing")} className="text-sm text-primary flex items-center gap-1">More <ChevronRight className="w-3 h-3" /></button>
         </div>
-        <div className="flex items-center gap-2 mb-2">
-          <CheckCircle className="w-4 h-4 text-accent" />
-          <span className="text-sm font-medium text-accent">Nice work!</span>
-          <span className="text-xs text-muted-foreground">Your account is looking healthy.</span>
-        </div>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <DollarSign className="w-4 h-4 text-primary" />
-            <span className="text-sm font-medium text-foreground">Amount Due</span>
+        {stats && stats.overdueInvoices > 0 ? (
+          <>
+            <div className="flex items-center gap-2 mb-2">
+              <AlertTriangle className="w-4 h-4 text-destructive" />
+              <span className="text-sm font-medium text-destructive">{stats.overdueInvoices} overdue invoice{stats.overdueInvoices > 1 ? 's' : ''}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <DollarSign className="w-4 h-4 text-primary" />
+                <span className="text-sm font-medium text-foreground">Amount Due</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-destructive">Pay now</span>
+                <span className="font-bold text-foreground">${stats.pendingPayments?.toFixed(2) || '0.00'}</span>
+              </div>
+            </div>
+          </>
+        ) : stats && stats.pendingPayments > 0 ? (
+          <>
+            <div className="flex items-center gap-2 mb-2">
+              <CheckCircle className="w-4 h-4 text-accent" />
+              <span className="text-sm font-medium text-accent">Payment upcoming</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <DollarSign className="w-4 h-4 text-primary" />
+                <span className="text-sm font-medium text-foreground">Amount Due</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-foreground">${stats.pendingPayments?.toFixed(2) || '0.00'}</span>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="flex items-center gap-2 mb-2">
+            <CheckCircle className="w-4 h-4 text-accent" />
+            <span className="text-sm font-medium text-accent">Nice work!</span>
+            <span className="text-xs text-muted-foreground">Your account is looking healthy.</span>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-destructive">Due Sep 12, 2025</span>
-            <span className="font-bold text-foreground">$75.00</span>
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );

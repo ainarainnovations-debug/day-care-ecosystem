@@ -5,6 +5,9 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { CreditCard, DollarSign, Clock, CheckCircle, AlertCircle, TrendingUp, Settings, Bell, Info, LayoutDashboard, Calendar, Baby, Activity, Wallet, CalendarClock, Timer, KeyRound, Inbox, PencilLine, Rocket, Users } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '@/hooks/useAuth';
+import { paymentService } from '@/services/paymentService';
 
 const sidebarItems = [
   { id: "today", label: "Today", icon: LayoutDashboard, path: "/provider/dashboard" },
@@ -21,29 +24,68 @@ const sidebarItems = [
   { id: "settings", label: "Settings", icon: Settings, path: "/provider/dashboard" },
 ];
 
+// Helper function to calculate time ago
+function getTimeAgo(date: Date): string {
+  const now = new Date();
+  const diff = now.getTime() - date.getTime();
+  const minutes = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days = Math.floor(diff / 86400000);
+
+  if (minutes < 1) return 'Just now';
+  if (minutes < 60) return `${minutes} min ago`;
+  if (hours < 24) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+  return `${days} day${days > 1 ? 's' : ''} ago`;
+}
+
 export default function PaymentDashboard() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   
-  // Mock data for demonstration
-  const stats = {
-    totalCollected: 45600,
-    pendingPayments: 12800,
-    autopayRate: 82,
-    averageCollectionTime: 2.3
-  };
+  // Fetch real payment data
+  const { data: stats, isLoading: statsLoading } = useQuery({
+    queryKey: ['payment-stats', user?.id],
+    queryFn: () => paymentService.getPaymentStats(user!.id),
+    enabled: !!user?.id,
+  });
 
-  const paymentMethods = [
+  const { data: recentPayments = [], isLoading: paymentsLoading } = useQuery({
+    queryKey: ['recent-payments', user?.id],
+    queryFn: () => paymentService.getRecentPayments(user!.id, 10),
+    enabled: !!user?.id,
+  });
+
+  const { data: paymentMethods = [], isLoading: methodsLoading } = useQuery({
+    queryKey: ['payment-methods', user?.id],
+    queryFn: () => paymentService.getPaymentMethods(user!.id),
+    enabled: !!user?.id,
+  });
+
+  // Default payment methods if none configured
+  const defaultMethods = [
     { type: 'ACH Bank Transfer', fee: '0.8%', recommended: true, icon: '🏦', description: 'Lowest fees, best for recurring' },
     { type: 'Debit/Credit Card', fee: '2.9% + $0.30', recommended: false, icon: '💳', description: 'Standard card processing' },
     { type: 'FSA/HSA Card', fee: '2.9% + $0.30', recommended: false, icon: '🏥', description: 'Dependent care cards accepted' }
   ];
 
-  const recentPayments = [
-    { id: '1', parent: 'Sarah Johnson', amount: 1200, method: 'ACH', fee: 9.60, net: 1190.40, status: 'succeeded', autopay: true, time: '2 min ago' },
-    { id: '2', parent: 'Michael Chen', amount: 600, method: 'Card', fee: 17.70, net: 582.30, status: 'succeeded', autopay: false, time: '1 hour ago' },
-    { id: '3', parent: 'Emily Davis', amount: 1200, method: 'ACH', fee: 9.60, net: 1190.40, status: 'succeeded', autopay: true, time: '3 hours ago' },
-    { id: '4', parent: 'James Wilson', amount: 450, method: 'FSA', fee: 13.35, net: 436.65, status: 'processing', autopay: false, time: '5 hours ago' }
-  ];
+  const displayMethods = paymentMethods.length > 0 ? paymentMethods.map((m: any) => ({
+    type: m.method_type === 'ach' ? 'ACH Bank Transfer' : m.method_type === 'card' ? 'Debit/Credit Card' : 'FSA/HSA Card',
+    fee: m.method_type === 'ach' ? '0.8%' : '2.9% + $0.30',
+    recommended: m.method_type === 'ach',
+    icon: m.method_type === 'ach' ? '🏦' : m.method_type === 'card' ? '💳' : '🏥',
+    description: m.method_type === 'ach' ? 'Lowest fees, best for recurring' : 'Standard card processing'
+  })) : defaultMethods;
+
+  if (statsLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading payment data...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -164,7 +206,7 @@ export default function PaymentDashboard() {
         <div className="space-y-4 mb-6">
           <h2 className="font-heading text-lg font-bold text-foreground">Payment Methods</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {paymentMethods.map((method, idx) => (
+            {displayMethods.map((method: any, idx: number) => (
               <div key={idx} className={`bg-popover rounded-xl border p-6 relative ${method.recommended ? 'border-primary' : 'border-border'}`}>
                 {method.recommended && (
                   <Badge className="absolute top-4 right-4 bg-primary">Recommended</Badge>
@@ -203,47 +245,68 @@ export default function PaymentDashboard() {
             <h2 className="font-heading text-lg font-bold text-foreground">Recent Payments</h2>
             <Button variant="outline" size="sm">View All</Button>
           </div>
-          <div className="bg-popover rounded-xl border border-border divide-y divide-border">
-            {recentPayments.map((payment) => (
-              <div key={payment.id} className="p-6 hover:bg-secondary/50 transition-colors">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                      payment.status === 'succeeded' ? 'bg-primary/10' : 'bg-accent/10'
-                    }`}>
-                      {payment.status === 'succeeded' ? (
-                        <CheckCircle className="h-6 w-6 text-primary" />
-                      ) : (
-                        <Clock className="h-6 w-6 text-accent" />
-                      )}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <p className="font-semibold text-foreground">{payment.parent}</p>
-                        {payment.autopay && (
-                          <Badge variant="outline" className="text-xs">Autopay</Badge>
-                        )}
+          {paymentsLoading ? (
+            <div className="bg-popover rounded-xl border border-border p-8 text-center text-muted-foreground">
+              Loading recent payments...
+            </div>
+          ) : recentPayments.length === 0 ? (
+            <div className="bg-popover rounded-xl border border-border p-8 text-center text-muted-foreground">
+              No recent payments
+            </div>
+          ) : (
+            <div className="bg-popover rounded-xl border border-border divide-y divide-border">
+              {recentPayments.map((payment: any) => {
+                const paymentDate = payment.payment_date ? new Date(payment.payment_date) : null;
+                const timeAgo = paymentDate ? getTimeAgo(paymentDate) : 'Unknown';
+                
+                return (
+                  <div key={payment.id} className="p-6 hover:bg-secondary/50 transition-colors">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                          payment.status === 'succeeded' ? 'bg-primary/10' : 'bg-accent/10'
+                        }`}>
+                          {payment.status === 'succeeded' ? (
+                            <CheckCircle className="h-6 w-6 text-primary" />
+                          ) : (
+                            <Clock className="h-6 w-6 text-accent" />
+                          )}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="font-semibold text-foreground">{payment.parent_name || 'Unknown'}</p>
+                            {payment.autopay_enabled && (
+                              <Badge variant="outline" className="text-xs">Autopay</Badge>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {payment.method_type?.toUpperCase() || 'N/A'} • {timeAgo}
+                          </p>
+                        </div>
                       </div>
-                      <p className="text-sm text-muted-foreground">{payment.method} • {payment.time}</p>
+                      
+                      <div className="text-right">
+                        <p className="text-2xl font-bold text-foreground">
+                          ${(payment.amount || 0).toFixed(2)}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Net: <span className="font-semibold text-primary">
+                            ${(payment.net_amount || payment.amount || 0).toFixed(2)}
+                          </span>
+                        </p>
+                      </div>
                     </div>
+                    {payment.status === 'succeeded' && (
+                      <div className="mt-3 flex items-center gap-2 text-xs text-primary">
+                        <CheckCircle className="h-3 w-3" />
+                        <span>Receipt sent • Payment confirmed instantly</span>
+                      </div>
+                    )}
                   </div>
-                  
-                  <div className="text-right">
-                    <p className="text-2xl font-bold text-foreground">${payment.amount.toFixed(2)}</p>
-                    <p className="text-sm text-muted-foreground">
-                      Fee: ${payment.fee.toFixed(2)} • Net: <span className="font-semibold text-primary">${payment.net.toFixed(2)}</span>
-                    </p>
-                  </div>
-                </div>
-                {payment.status === 'succeeded' && (
-                  <div className="mt-3 flex items-center gap-2 text-xs text-primary">
-                    <CheckCircle className="h-3 w-3" />
-                    <span>Receipt sent • Payment confirmed instantly</span>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Features Grid */}
