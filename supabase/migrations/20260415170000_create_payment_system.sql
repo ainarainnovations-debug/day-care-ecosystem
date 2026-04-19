@@ -678,7 +678,7 @@ CREATE POLICY "Everyone can view fee structures"
 
 -- Grant execute permissions
 GRANT EXECUTE ON FUNCTION calculate_processing_fee TO authenticated;
-GRANT EXECUTE ON FUNCTION process_autopay_invoices TO authenticated;
+GRANT EXECUTE ON FUNCTION process_autopay_invoices_payment TO authenticated;
 GRANT EXECUTE ON FUNCTION create_payment_plan TO authenticated;
 GRANT EXECUTE ON FUNCTION record_payment TO authenticated;
 
